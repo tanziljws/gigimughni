@@ -6,6 +6,18 @@
       "destination": "/assets/:match*"
     },
     {
+      "source": "/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/vite.svg",
+      "destination": "/vite.svg"
+    },
+    {
       "source": "**",
       "destination": "/index.html"
     }
@@ -22,6 +34,15 @@
     },
     {
       "source": "/assets/**/*.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
       "headers": [
         {
           "key": "Content-Type",
