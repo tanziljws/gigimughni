@@ -228,6 +228,7 @@ router.get('/events', async (req, res) => {
     );
 
     // Get events with category info
+    // ⚠️ FIX: LIMIT and OFFSET must be in query string, not as parameters (mysql2 issue)
     const [events] = await query(
       `SELECT e.*, c.name as category_name, 
               (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id) as registration_count
@@ -235,8 +236,8 @@ router.get('/events', async (req, res) => {
        LEFT JOIN categories c ON e.category_id = c.id 
        ${whereClause}
        ORDER BY e.created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      params
     );
 
     const result = {
