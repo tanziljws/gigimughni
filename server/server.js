@@ -26,7 +26,7 @@ try {
   
   initCronJobs = cronJobsModule.initCronJobs;
   archiveEndedEvents = eventCleanupModule.archiveEndedEvents;
-  runMigrations = migrationModule.runMigrations || migrationModule.default;
+  runMigrations = migrationModule.runMigrations;
   
   console.log('✅ Utilities loaded');
 } catch (error) {
