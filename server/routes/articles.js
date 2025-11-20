@@ -28,6 +28,7 @@ router.get('/', async (req, res) => {
     }
 
     // Get articles with author info
+    // ⚠️ LIMIT and OFFSET must be in query string, not as parameters (mysql2 issue)
     const articlesQuery = `
       SELECT 
         a.id, a.title, a.slug, a.excerpt, a.featured_image, a.category, 
@@ -37,10 +38,9 @@ router.get('/', async (req, res) => {
       LEFT JOIN users u ON a.author_id = u.id
       ${whereClause}
       ORDER BY a.is_featured DESC, a.published_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${limit} OFFSET ${offset}
     `;
 
-    queryParams.push(limit, offset);
     const [articles] = await query(articlesQuery, queryParams);
 
     // Get total count for pagination
@@ -179,6 +179,7 @@ router.get('/category/:category', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
+    // ⚠️ LIMIT and OFFSET must be in query string, not as parameters (mysql2 issue)
     const [articles] = await query(`
       SELECT 
         a.id, a.title, a.slug, a.excerpt, a.featured_image, a.category, 
@@ -188,8 +189,8 @@ router.get('/category/:category', async (req, res) => {
       LEFT JOIN users u ON a.author_id = u.id
       WHERE a.status = "published" AND a.category = ?
       ORDER BY a.published_at DESC
-      LIMIT ? OFFSET ?
-    `, [category, limit, offset]);
+      LIMIT ${limit} OFFSET ${offset}
+    `, [category]);
 
     const [countResult] = await query(`
       SELECT COUNT(*) as total 
