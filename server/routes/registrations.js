@@ -189,9 +189,10 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     }
 
     // Check if event is full
+    // ⚠️ FIX: Check both 'confirmed' and 'approved' status (event_registrations uses 'approved')
     if (event.max_participants) {
       const [approvedRegistrations] = await query(
-        'SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ? AND status = "confirmed"',
+        'SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ? AND (status = "confirmed" OR status = "approved")',
         [event_id]
       );
 
