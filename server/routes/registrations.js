@@ -101,6 +101,7 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
 
     const {
       event_id,
+      event_date, // ⚠️ Allow event_date from request body (frontend can send it)
       payment_method = 'cash',
       full_name,
       email,
@@ -130,9 +131,12 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     const now = new Date();
     
     // Safely parse event date and time
+    // ⚠️ Use event_date from request body if provided, otherwise use from database
     let eventDateTime;
     try {
-      const eventDateStr = event.event_date ? event.event_date.toString().split('T')[0] : null;
+      // Prefer event_date from request body, fallback to database
+      const eventDateSource = event_date || event.event_date;
+      const eventDateStr = eventDateSource ? eventDateSource.toString().split('T')[0] : null;
       const eventTimeStr = event.event_time ? event.event_time.toString() : '00:00:00';
       
       if (!eventDateStr) {
