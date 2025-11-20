@@ -42,7 +42,7 @@ import ReviewsManagement from './pages/admin/ReviewsManagement';
 import ReportsManagement from './pages/admin/ReportsManagement';
 import ContactManagement from './pages/admin/ContactManagement';
 
-import './styles/theme.css';
+// CSS files are now imported in main.jsx
 
 // Simple page transition animations CSS
 const pageTransitionStyles = `
