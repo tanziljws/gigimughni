@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import api from '../../services/api';
+import { BACKEND_BASE_URL } from '../../services/api';
 
 const ArticleDetailPage = () => {
   const { slug } = useParams();
@@ -16,8 +18,8 @@ const ArticleDetailPage = () => {
   const fetchArticle = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/articles/${slug}`);
-      const data = await response.json();
+      const response = await api.get(`/articles/${slug}`);
+      const data = response.data || response;
 
       if (data.success) {
         setArticle(data.data.article);
@@ -169,7 +171,7 @@ const ArticleDetailPage = () => {
         {article.featured_image && (
           <div className="mb-8">
             <img
-              src={article.featured_image.startsWith('http') ? article.featured_image : `http://localhost:3000${article.featured_image}`}
+              src={article.featured_image.startsWith('http') ? article.featured_image : `${BACKEND_BASE_URL}${article.featured_image}`}
               alt={article.title}
               className="w-full h-64 md:h-96 object-cover rounded-2xl"
               onError={(e) => {
@@ -255,7 +257,7 @@ const ArticleDetailPage = () => {
                   <div className="aspect-video bg-gradient-to-r from-cosmic-navy to-stellar-blue relative overflow-hidden">
                     {relatedArticle.featured_image ? (
                       <img 
-                        src={relatedArticle.featured_image.startsWith('http') ? relatedArticle.featured_image : `http://localhost:3000${relatedArticle.featured_image}`}
+                        src={relatedArticle.featured_image.startsWith('http') ? relatedArticle.featured_image : `${BACKEND_BASE_URL}${relatedArticle.featured_image}`}
                         alt={relatedArticle.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {

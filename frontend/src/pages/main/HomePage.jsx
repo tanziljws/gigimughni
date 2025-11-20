@@ -124,9 +124,8 @@ const HomePage = () => {
       
       try {
         // Fetch highlighted event for hero section
-        const backendUrl = getBackendBaseUrl();
-        const highlightedResponse = await fetch(`${backendUrl}/api/events/highlighted/event`);
-        const highlightedData = await highlightedResponse.json();
+        const highlightedResponse = await api.get('/events/highlighted/event');
+        const highlightedData = highlightedResponse.data || highlightedResponse;
         
         console.log('✅ Highlighted event response:', highlightedData);
         
@@ -136,6 +135,7 @@ const HomePage = () => {
           
           // Extract color from event image
           if (highlightedData.data.image_url) {
+            const backendUrl = getBackendBaseUrl();
             const imageUrl = `${backendUrl}${highlightedData.data.image_url}`;
             extractDominantColor(imageUrl);
           }

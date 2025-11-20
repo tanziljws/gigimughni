@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, Calendar, MapPin, ChevronLeft, ChevronRight, Instagram, Facebook, Youtube, Twitter, Mail, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
+import api, { BACKEND_BASE_URL } from '../../services/api';
 import Footer from '../../components/Footer';
 
 const EventsListPage = () => {
@@ -264,7 +264,7 @@ const EventsListPage = () => {
                 <div className="relative h-48 overflow-hidden bg-gray-100">
                   {event.image_url ? (
                     <img
-                      src={`http://localhost:3000${event.image_url}`}
+                      src={`${BACKEND_BASE_URL}${event.image_url}`}
                       alt={event.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {

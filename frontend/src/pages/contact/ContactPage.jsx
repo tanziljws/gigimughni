@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Send, MessageCircle, Calendar } from 'lucide-react';
+import api from '../../services/api';
 import Footer from '../../components/Footer';
 
 const ContactPage = () => {
@@ -39,21 +40,15 @@ const ContactPage = () => {
 
     try {
       // Use the contact endpoint that saves to database
-      const response = await fetch('http://localhost:3000/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          subject: formData.subject,
-          message: formData.message
-        }),
+      const response = await api.post('/contact', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message
       });
 
-      const data = await response.json();
+      const data = response.data || response;
 
       if (data.success) {
         setMessage('✅ Pesan berhasil dikirim! Admin akan segera merespons pesan Anda.');

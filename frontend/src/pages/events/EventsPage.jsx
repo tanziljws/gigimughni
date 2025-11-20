@@ -361,7 +361,7 @@ const EventsPage = () => {
                   <div className="h-48 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center relative overflow-hidden">
                     {event.image_url ? (
                       <img 
-                        src={`http://localhost:3000${event.image_url}`}
+                        src={`${BACKEND_BASE_URL}${event.image_url}`}
                         alt={event.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                         onError={(e) => {

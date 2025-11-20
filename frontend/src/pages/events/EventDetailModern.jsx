@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../services/api';
+import api, { BACKEND_BASE_URL } from '../../services/api';
 import Footer from '../../components/Footer';
 import { ArrowLeft, Calendar, MapPin, Clock, ChevronDown, ChevronUp, Instagram, Facebook, Youtube, Twitter } from 'lucide-react';
 
@@ -130,9 +130,9 @@ const EventDetailModern = () => {
               <div className="w-full rounded-xl overflow-hidden bg-gray-100 shadow-sm border border-gray-200">
                 <img
                   src={event.image_url 
-                    ? `http://localhost:3000${event.image_url}` 
+                    ? `${BACKEND_BASE_URL}${event.image_url}` 
                     : event.image 
-                    ? `http://localhost:3000${event.image}` 
+                    ? `${BACKEND_BASE_URL}${event.image}` 
                     : ''}
                   alt={event.title}
                   className="w-full h-auto object-cover"

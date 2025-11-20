@@ -106,7 +106,7 @@ const BlogManagement = () => {
       category: blog.category || 'general'
     });
     if (blog.featured_image) {
-      setImagePreview(`http://localhost:3000${blog.featured_image}`);
+      setImagePreview(`${BACKEND_BASE_URL}${blog.featured_image}`);
     } else {
       setImagePreview(null);
     }
@@ -362,7 +362,7 @@ const BlogManagement = () => {
                   {blog.featured_image ? (
                     <div className="flex-shrink-0 w-48 h-32 rounded-xl overflow-hidden bg-gray-100">
                       <img
-                        src={`http://localhost:3000${blog.featured_image}`}
+                        src={`${BACKEND_BASE_URL}${blog.featured_image}`}
                         alt={blog.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
                         onError={(e) => {
@@ -625,7 +625,7 @@ const BlogManagement = () => {
                       {!imagePreview && editingBlog && editingBlog.featured_image && (
                         <div className="mt-4 rounded-xl overflow-hidden border-2 border-gray-200">
                           <img
-                            src={`http://localhost:3000${editingBlog.featured_image}`}
+                            src={`${BACKEND_BASE_URL}${editingBlog.featured_image}`}
                             alt="Current"
                             className="w-full h-48 object-cover"
                             onError={(e) => {
