@@ -144,7 +144,7 @@ router.get('/summary', async (req, res) => {
     // Participant details
     const [participantDetails] = await query(
       `SELECT 
-          COALESCE(er.full_name, u.full_name) as name, 
+          u.full_name as name, 
           COALESCE(er.email, u.email) as email, 
           COALESCE(er.phone, u.phone) as phone,
           e.title as event_title,

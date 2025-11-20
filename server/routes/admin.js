@@ -84,12 +84,13 @@ router.get('/users', async (req, res) => {
     );
 
     // Get users
+    // ⚠️ FIX: LIMIT and OFFSET must be in query string, not as parameters (mysql2 issue)
     const [users] = await query(
       `SELECT id, username, email, full_name, phone, role, is_active, created_at, updated_at 
        FROM users ${whereClause} 
        ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      params
     );
 
     const result = {
@@ -282,7 +283,8 @@ router.get('/registrations', async (req, res) => {
     );
 
     // Get registrations with event and user info
-    // Try to use columns from event_registrations first, fallback to users/registrations tables
+    // ⚠️ FIX: event_registrations doesn't have full_name, email, phone, etc.
+    // Use only columns that exist: from users table and event_registrations table
     const [registrations] = await query(
       `SELECT r.*, 
               e.title as event_title, 
@@ -290,26 +292,22 @@ router.get('/registrations', async (req, res) => {
               e.location,
               e.price as event_price,
               e.is_free,
-              u.full_name as user_name, 
-              u.email as user_email,
-              u.phone as user_phone,
-              -- Use event_registrations columns if they exist, otherwise use registrations table, then users
-              COALESCE(r.full_name, reg.full_name, u.full_name) as full_name,
-              COALESCE(r.email, reg.email, u.email) as email,
-              COALESCE(r.phone, reg.phone, u.phone) as phone,
-              COALESCE(r.address, reg.address) as address,
-              COALESCE(r.city, reg.city) as city,
-              COALESCE(r.province, reg.province) as province,
-              COALESCE(r.institution, reg.institution) as institution,
-              COALESCE(r.notes, reg.notes) as notes
+              -- Get user info from users table (these columns exist)
+              u.full_name as full_name,
+              u.email as email,
+              u.phone as phone,
+              u.address as address,
+              u.city as city,
+              u.province as province,
+              u.institution as institution,
+              r.notes as notes
        FROM event_registrations r
        LEFT JOIN events e ON r.event_id = e.id
        LEFT JOIN users u ON r.user_id = u.id
-       LEFT JOIN registrations reg ON r.user_id = reg.user_id AND r.event_id = reg.event_id
        ${whereClause}
-       ORDER BY COALESCE(r.created_at, r.id) DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       ORDER BY r.created_at DESC 
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      params
     );
 
     const result = {
@@ -540,23 +538,24 @@ router.get('/export/participants/:eventId', async (req, res) => {
       return ApiResponse.notFound(res, 'Event not found');
     }
 
-    // Get participants data from event_registrations (main table with all data)
+    // Get participants data from event_registrations
+    // ⚠️ FIX: event_registrations doesn't have full_name, email, phone, address, etc.
+    // Use only columns from users table
     const [participants] = await query(`
       SELECT 
         er.id,
         er.user_id,
-        COALESCE(er.full_name, u.full_name) as full_name,
-        COALESCE(er.email, u.email) as email,
-        COALESCE(er.phone, u.phone) as phone,
-        er.address,
-        er.city,
-        er.province,
-        er.institution,
+        u.full_name as full_name,
+        u.email as email,
+        u.phone as phone,
+        u.address as address,
+        u.city as city,
+        u.province as province,
+        u.institution as institution,
         er.notes,
         er.status,
         er.payment_status,
         er.payment_amount,
-        er.attendance_status,
         er.created_at
       FROM event_registrations er
       LEFT JOIN users u ON er.user_id = u.id
