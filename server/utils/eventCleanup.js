@@ -196,7 +196,8 @@ const archiveEndedEvents = async () => {
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
     
     // Find events that ended more than 1 month ago
-    const endedEvents = await query(`
+    // CRITICAL: Only select events with valid ID (not NULL)
+    const [endedEvents] = await query(`
       SELECT 
         id, 
         title, 
@@ -206,10 +207,11 @@ const archiveEndedEvents = async () => {
       FROM events 
       WHERE is_active = TRUE 
         AND status = 'published'
+        AND id IS NOT NULL
         AND CONCAT(COALESCE(end_date, event_date), ' ', COALESCE(end_time, '23:59:59')) < ?
     `, [oneMonthAgo]);
 
-    if (endedEvents.length === 0) {
+    if (!endedEvents || endedEvents.length === 0) {
       console.log('✅ No ended events to archive');
       return { archived: 0, events: [] };
     }
@@ -219,6 +221,18 @@ const archiveEndedEvents = async () => {
     // Archive each event (soft delete)
     const archivedEvents = [];
     for (const event of endedEvents) {
+      // CRITICAL: Validate event data before processing
+      if (!event || !event.id) {
+        console.error(`   ✗ Skipping invalid event (missing ID):`, event);
+        continue;
+      }
+
+      // Additional validation: ensure id is a valid number
+      if (isNaN(event.id) || event.id <= 0) {
+        console.error(`   ✗ Skipping invalid event (invalid ID: ${event.id}):`, event);
+        continue;
+      }
+
       try {
         // Update event status to archived
         await query(`
@@ -232,13 +246,14 @@ const archiveEndedEvents = async () => {
 
         archivedEvents.push({
           id: event.id,
-          title: event.title,
+          title: event.title || 'Untitled Event',
           event_date: event.event_date
         });
 
-        console.log(`   ✓ Archived: ${event.title} (ID: ${event.id})`);
+        console.log(`   ✓ Archived: ${event.title || 'Untitled Event'} (ID: ${event.id})`);
       } catch (err) {
-        console.error(`   ✗ Failed to archive event ${event.id}:`, err.message);
+        console.error(`   ✗ Failed to archive event ${event.id || 'undefined'}:`, err.message);
+        // Continue processing other events instead of crashing
       }
     }
 
@@ -252,7 +267,9 @@ const archiveEndedEvents = async () => {
 
   } catch (error) {
     console.error('❌ Error in archiveEndedEvents:', error);
-    throw error;
+    // Don't throw error - return empty result to prevent server crash
+    // Log error but allow server to continue running
+    return { archived: 0, events: [] };
   }
 };
 
