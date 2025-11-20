@@ -22,6 +22,8 @@
       "destination": "/index.html"
     }
   ],
+  "cleanUrls": false,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/assets/**/*.css",
