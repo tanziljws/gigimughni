@@ -52,11 +52,22 @@ router.get('/', async (req, res) => {
     const [countResult] = await query(countQuery, queryParams.slice(0, -2));
     const total = countResult[0].total;
 
-    // Parse tags JSON
-    const parsedArticles = articles.map(article => ({
-      ...article,
-      tags: article.tags ? JSON.parse(article.tags) : []
-    }));
+    // Parse tags JSON (handle both JSON string and already parsed)
+    const parsedArticles = articles.map(article => {
+      let tags = [];
+      if (article.tags) {
+        try {
+          tags = typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags;
+        } catch (e) {
+          console.warn('Failed to parse tags for article:', article.id, e.message);
+          tags = [];
+        }
+      }
+      return {
+        ...article,
+        tags
+      };
+    });
 
     return ApiResponse.success(res, {
       articles: parsedArticles,
@@ -69,8 +80,17 @@ router.get('/', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get articles error:', error);
-    return ApiResponse.error(res, 'Failed to fetch articles');
+    console.error('❌ Get articles error:', error);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error stack:', error.stack);
+    
+    // Return more detailed error in development
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Failed to fetch articles: ${error.message}` 
+      : 'Failed to fetch articles';
+    
+    return ApiResponse.error(res, errorMessage, 500);
   }
 });
 
