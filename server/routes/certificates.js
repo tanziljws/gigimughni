@@ -453,10 +453,13 @@ router.post('/generate-bulk', authenticateToken, requireAdmin, async (req, res) 
       return ApiResponse.notFound(res, 'Event not found');
     }
 
+    // ⚠️ FIX: event_registrations status enum is ('pending','approved','cancelled','attended')
+    // But registrations might have status 'confirmed' instead of 'approved'
+    // Check both 'approved' and 'confirmed' status
     const [participants] = await query(
       `SELECT id FROM event_registrations 
        WHERE event_id = ? 
-         AND (status = ? OR status = 'attended')`,
+         AND (status = ? OR status = 'attended' OR status = 'confirmed')`,
       [eventId, status]
     );
 
