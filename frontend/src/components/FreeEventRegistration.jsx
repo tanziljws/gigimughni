@@ -54,6 +54,7 @@ const FreeEventRegistration = ({ event, onRegistrationSuccess }) => {
       
       const response = await api.post('/registrations', {
         event_id: event.id,
+        event_date: event?.event_date || event?.date || event?.eventDate, // ⚠️ CRITICAL: Backend requires event_date
         payment_method: 'free',
         full_name: user.full_name,
         email: user.email,

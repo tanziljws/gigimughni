@@ -131,8 +131,10 @@ const RegistrationFormPage = () => {
       const isFreeEvent = event?.is_free || event?.price === 0;
       
       // Submit registration dengan data diri lengkap
+      // ⚠️ CRITICAL: Include event_date - backend requires it
       const response = await api.post('/registrations', {
         event_id: parseInt(eventId),
+        event_date: event?.event_date || event?.date || event?.eventDate, // Get event date from event object
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
