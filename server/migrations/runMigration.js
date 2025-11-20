@@ -6,14 +6,20 @@ async function runMigrations() {
   try {
     console.log('🔄 Starting database migrations...');
 
-    // Create migrations table if not exists
-    await query(`
-      CREATE TABLE IF NOT EXISTS migrations (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        migration_name VARCHAR(255) NOT NULL UNIQUE,
-        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    // Add timeout wrapper
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Migration timeout after 30 seconds')), 30000);
+    });
+
+    const migrationPromise = (async () => {
+      // Create migrations table if not exists
+      await query(`
+        CREATE TABLE IF NOT EXISTS migrations (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          migration_name VARCHAR(255) NOT NULL UNIQUE,
+          executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
 
     // Get all migration files
     const migrationsDir = __dirname;
@@ -67,10 +73,18 @@ async function runMigrations() {
       console.log(`✅ Completed: ${file}`);
     }
 
-    console.log('✅ All migrations completed successfully!\n');
+      console.log('✅ All migrations completed successfully!\n');
+    })();
+
+    // Race between migration and timeout
+    await Promise.race([migrationPromise, timeoutPromise]);
   } catch (error) {
-    console.error('❌ Migration error:', error);
-    throw error;
+    console.error('❌ Migration error:', error.message);
+    // Don't throw in production - let server start anyway
+    if (process.env.NODE_ENV !== 'production') {
+      throw error;
+    }
+    console.warn('⚠️  Continuing server startup despite migration error...');
   }
 }
 

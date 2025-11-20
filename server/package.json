@@ -9,8 +9,7 @@
     "dev": "nodemon server.js",
     "create-db": "node create-database.js",
     "migrate": "node migrations/runMigration.js",
-    "setup": "npm run create-db && npm run migrate",
-    "postinstall": "node migrations/runMigration.js || true"
+    "setup": "npm run create-db && npm run migrate"
   },
   "keywords": [],
   "author": "",
