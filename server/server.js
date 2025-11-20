@@ -20,6 +20,33 @@ const allowedOrigins = [
   'https://fronten.up.railway.app' // Production frontend URL
 ].filter(Boolean); // Remove undefined values
 
+// Handle preflight OPTIONS requests FIRST - before CORS middleware
+app.options('*', cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for preflight
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Content-Type', 
+    'Authorization', 
+    'Cache-Control', 
+    'Pragma', 
+    'Expires',
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ],
+  maxAge: 86400,
+  optionsSuccessStatus: 204
+}));
+
+// CORS middleware for all other requests
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -44,7 +71,7 @@ app.use(cors({
     'Accept',
     'Origin'
   ],
-  exposedHeaders: ['Content-Length', 'Content-Type'],
+  exposedHeaders: ['Content-Length', 'Content-Type', 'Content-Disposition'],
   maxAge: 86400, // 24 hours
   preflightContinue: false,
   optionsSuccessStatus: 204
