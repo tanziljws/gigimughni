@@ -1,14 +1,44 @@
+// Early logging to track startup
+console.log('🚀 Starting server initialization...');
+console.log('📋 Environment:', process.env.NODE_ENV || 'development');
+console.log('📋 PORT:', process.env.PORT || '3000');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
-require('dotenv').config({ path: './config.env' });
-const { initCronJobs } = require('./utils/cronJobs');
-const { archiveEndedEvents } = require('./utils/eventCleanup');
-const { runMigrations } = require('./migrations/runMigration');
+
+// Load environment variables
+try {
+  require('dotenv').config({ path: './config.env' });
+  console.log('✅ Environment variables loaded');
+} catch (error) {
+  console.error('❌ Failed to load environment variables:', error);
+}
+
+// Import utilities with error handling
+let initCronJobs, archiveEndedEvents, runMigrations;
+try {
+  const cronJobsModule = require('./utils/cronJobs');
+  const eventCleanupModule = require('./utils/eventCleanup');
+  const migrationModule = require('./migrations/runMigration');
+  
+  initCronJobs = cronJobsModule.initCronJobs;
+  archiveEndedEvents = eventCleanupModule.archiveEndedEvents;
+  runMigrations = migrationModule.runMigrations || migrationModule.default;
+  
+  console.log('✅ Utilities loaded');
+} catch (error) {
+  console.error('❌ Failed to load utilities:', error.message);
+  // Create dummy functions to prevent crashes
+  initCronJobs = () => console.warn('⚠️ Cron jobs disabled');
+  archiveEndedEvents = async () => ({ archived: 0, events: [] });
+  runMigrations = async () => { console.warn('⚠️ Migrations disabled'); return Promise.resolve(); };
+}
 
 const app = express();
+console.log('✅ Express app created');
 
 // ⚠️ CRITICAL: Handle OPTIONS requests FIRST - before ANY other middleware
 // This prevents redirect issues with preflight requests
@@ -93,74 +123,90 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(__dirname, 'uploads')));
 
-// Root route - for Railway health check
+// Root route - for Railway health check (MUST be before route imports to ensure it's always available)
 app.get('/', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Event Yukk API Server',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development',
-    endpoints: {
-      health: '/api/health',
-      api: '/api'
-    }
-  });
+  try {
+    res.json({
+      status: 'OK',
+      message: 'Event Yukk API Server',
+      version: '1.0.0',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      endpoints: {
+        health: '/api/health',
+        api: '/api'
+      }
+    });
+  } catch (error) {
+    console.error('Error in root route:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Server error',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-// Health check endpoint
+// Health check endpoint (MUST be before route imports to ensure it's always available)
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+  try {
+    res.json({
+      status: 'OK',
+      message: 'Server is running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    console.error('Error in health check:', error);
+    res.status(500).json({
+      status: 'ERROR',
+      message: 'Server error',
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const adminRoutes = require('./routes/admin');
-const eventRoutes = require('./routes/events');
-const categoryRoutes = require('./routes/categories');
-const registrationRoutes = require('./routes/registrations');
-const userRoutes = require('./routes/users');
-const analyticsRoutes = require('./routes/analytics');
-const articlesRoutes = require('./routes/articles');
-const blogsRoutes = require('./routes/blogs');
-const contactsRoutes = require('./routes/contacts');
-const contactRoutes = require('./routes/contact');
-const historyRoutes = require('./routes/history');
-const uploadRoutes = require('./routes/upload');
-const paymentRoutes = require('./routes/payments');
-const attendanceRoutes = require('./routes/attendance');
-const certificateRoutes = require('./routes/certificates');
-const performersRoutes = require('./routes/performers');
-const reviewsRoutes = require('./routes/reviews');
-const reportsRoutes = require('./routes/reports');
+// Import routes with error handling - prevent server crash if route fails to load
+const routes = [
+  { path: '/api/auth', module: './routes/auth', name: 'auth' },
+  { path: '/api/admin', module: './routes/admin', name: 'admin' },
+  { path: '/api/events', module: './routes/events', name: 'events' },
+  { path: '/api/categories', module: './routes/categories', name: 'categories' },
+  { path: '/api/registrations', module: './routes/registrations', name: 'registrations' },
+  { path: '/api/users', module: './routes/users', name: 'users' },
+  { path: '/api/analytics', module: './routes/analytics', name: 'analytics' },
+  { path: '/api/articles', module: './routes/articles', name: 'articles' },
+  { path: '/api/blogs', module: './routes/blogs', name: 'blogs' },
+  { path: '/api/contacts', module: './routes/contacts', name: 'contacts' },
+  { path: '/api/contact', module: './routes/contact', name: 'contact' },
+  { path: '/api/history', module: './routes/history', name: 'history' },
+  { path: '/api/upload', module: './routes/upload', name: 'upload' },
+  { path: '/api/payments', module: './routes/payments', name: 'payments' },
+  { path: '/api/attendance', module: './routes/attendance', name: 'attendance' },
+  { path: '/api/certificates', module: './routes/certificates', name: 'certificates' },
+  { path: '/api/performers', module: './routes/performers', name: 'performers' },
+  { path: '/api/reviews', module: './routes/reviews', name: 'reviews' },
+  { path: '/api/admin/reports', module: './routes/reports', name: 'reports' }
+];
 
-// Use routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/events', eventRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/registrations', registrationRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/articles', articlesRoutes);
-app.use('/api/blogs', blogsRoutes);
-app.use('/api/contacts', contactsRoutes);
-app.use('/api/contact', contactRoutes);
-app.use('/api/history', historyRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/certificates', certificateRoutes);
-app.use('/api/performers', performersRoutes);
-app.use('/api/reviews', reviewsRoutes);
-app.use('/api/admin/reports', reportsRoutes);
+let registeredRoutes = 0;
+let failedRoutes = 0;
 
-console.log('✅ Reports routes registered at /api/admin/reports');
+routes.forEach(({ path, module, name }) => {
+  try {
+    const routeModule = require(module);
+    app.use(path, routeModule);
+    registeredRoutes++;
+    console.log(`✅ Route registered: ${path} (${name})`);
+  } catch (error) {
+    failedRoutes++;
+    console.error(`❌ Failed to load route ${path} (${name}):`, error.message);
+    console.error(`⚠️ Server will continue without ${path} route`);
+    // Don't crash - continue with other routes
+  }
+});
+
+console.log(`\n✅ Routes registration complete: ${registeredRoutes} registered, ${failedRoutes} failed\n`);
 
 // 404 handler - BUT skip for OPTIONS requests (already handled above)
 app.use('*', (req, res) => {
