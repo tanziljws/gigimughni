@@ -371,7 +371,7 @@ const RegistrationFormPage = () => {
                   alt={event.title}
                   className="w-full h-40 object-cover rounded-lg mb-4"
                   onError={(e) => {
-                    e.target.style.display = 'none';
+                    e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop';
                   }}
                 />
               )}

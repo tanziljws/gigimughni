@@ -365,9 +365,10 @@ const EventsPage = () => {
                         alt={event.title}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                         onError={(e) => {
-                          console.error('Image failed to load:', event.image_url);
                           e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
+                          if (e.target.nextSibling) {
+                            e.target.nextSibling.style.display = 'flex';
+                          }
                         }}
                       />
                     ) : null}

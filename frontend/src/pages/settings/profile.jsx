@@ -7,7 +7,8 @@ import {
   User, Mail, Phone, Calendar, Shield, Award, 
   Ticket, Edit2, Save, X, Camera, Lock, Eye, EyeOff,
   TrendingUp, CheckCircle, Clock, Upload, Palette, Download, 
-  MapPin, Clock as ClockIcon, Users, FileText, RotateCcw, Mail as MailIcon
+  MapPin, Clock as ClockIcon, Users, FileText, RotateCcw, Mail as MailIcon,
+  ClipboardCheck, CheckCircle2
 } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import api from '../../services/api';
@@ -65,6 +66,10 @@ const SettingsPage = () => {
   const [otpLoading, setOtpLoading] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Attendance states
+  const [submittingAttendance, setSubmittingAttendance] = useState({});
+  const [attendanceCheck, setAttendanceCheck] = useState({});
 
   const handleLogout = () => {
     logout();
@@ -265,12 +270,70 @@ const SettingsPage = () => {
     try {
       setLoadingRegistrations(true);
       const response = await api.get('/registrations/my-registrations');
-      setRegistrations(response.data?.data?.registrations || []);
+      setRegistrations(response.data?.data?.registrations || response.data?.registrations || []);
     } catch (error) {
       console.error('Error fetching registrations:', error);
       setRegistrations([]);
     } finally {
       setLoadingRegistrations(false);
+    }
+  };
+
+  // Check attendance availability for an event
+  const checkAttendanceAvailability = async (eventId) => {
+    try {
+      const response = await api.get(`/attendance/check/${eventId}`);
+      if (response.success) {
+        setAttendanceCheck(prev => ({
+          ...prev,
+          [eventId]: response.data
+        }));
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Error checking attendance:', error);
+      return null;
+    }
+  };
+
+  // Submit attendance for an event
+  const handleSubmitAttendance = async (registration) => {
+    if (!registration.attendance_token || !registration.event_id) {
+      toast.error('Token atau event ID tidak ditemukan');
+      return;
+    }
+
+    // Check availability first
+    const availability = await checkAttendanceAvailability(registration.event_id);
+    if (!availability || !availability.isAvailable) {
+      toast.error(availability?.message || 'Daftar hadir belum tersedia');
+      return;
+    }
+
+    if (!window.confirm(`Apakah Anda yakin ingin submit daftar hadir untuk event "${registration.event_title}"?`)) {
+      return;
+    }
+
+    setSubmittingAttendance(prev => ({ ...prev, [registration.id]: true }));
+
+    try {
+      const response = await api.post('/attendance/submit', {
+        token: registration.attendance_token,
+        event_id: registration.event_id
+      });
+
+      if (response.success) {
+        toast.success('Daftar hadir berhasil disubmit!');
+        // Refresh registrations to update status
+        await fetchRegistrations();
+      } else {
+        toast.error(response.message || 'Gagal submit daftar hadir');
+      }
+    } catch (error) {
+      console.error('Submit attendance error:', error);
+      toast.error(error.message || 'Gagal submit daftar hadir');
+    } finally {
+      setSubmittingAttendance(prev => ({ ...prev, [registration.id]: false }));
     }
   };
 
@@ -336,6 +399,17 @@ const SettingsPage = () => {
       fetchRegistrations();
     }
   }, [isAuthenticated, user]);
+
+  // Check attendance availability for events with tokens when events tab is active
+  useEffect(() => {
+    if (activeTab === 'events' && registrations.length > 0) {
+      registrations.forEach(reg => {
+        if (reg.attendance_token && reg.event_id && reg.status !== 'attended') {
+          checkAttendanceAvailability(reg.event_id);
+        }
+      });
+    }
+  }, [activeTab, registrations.length]);
 
   if (!isAuthenticated) {
     return (
@@ -1114,6 +1188,31 @@ const SettingsPage = () => {
                             <div className="text-xs text-cyan-300 font-mono font-bold bg-cyan-500/20 px-2 py-1 rounded mt-1">
                               {reg.attendance_token}
                             </div>
+                            {reg.status !== 'attended' && (
+                              <button
+                                onClick={() => handleSubmitAttendance(reg)}
+                                disabled={submittingAttendance[reg.id]}
+                                className="mt-2 w-full bg-green-600 hover:bg-green-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                {submittingAttendance[reg.id] ? (
+                                  <>
+                                    <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                                    <span>Mengirim...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ClipboardCheck className="w-3 h-3" />
+                                    <span>Submit Absen</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        {reg.status === 'attended' && (
+                          <div className="mt-2 flex items-center gap-2 text-green-300 text-xs">
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Sudah Hadir</span>
                           </div>
                         )}
                       </div>

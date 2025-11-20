@@ -118,9 +118,9 @@ router.post('/create-transaction', authenticateToken, requireUser, async (req, r
         }
       ],
       callbacks: {
-        finish: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment/success`,
-        error: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment/error`,
-        pending: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment/pending`
+        finish: `${process.env.FRONTEND_URL || 'https://fronten.up.railway.app'}/payment/success`,
+        error: `${process.env.FRONTEND_URL || 'https://fronten.up.railway.app'}/payment/error`,
+        pending: `${process.env.FRONTEND_URL || 'https://fronten.up.railway.app'}/payment/pending`
       }
     };
 

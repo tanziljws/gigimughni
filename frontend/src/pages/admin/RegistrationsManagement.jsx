@@ -118,11 +118,14 @@ const RegistrationsManagement = () => {
   const confirmGenerateCertificate = async () => {
     const registration = generateConfirm.registration;
     try {
-      await certificatesAPI.generate(registration.event_id, registration.id);
+      await certificatesAPI.generate(registration.event_id, registration.id || registration.user_id);
       toast.success(`Certificate generated for ${registration.full_name || registration.user_name}`);
+      setGenerateConfirm({ show: false, registration: null });
+      // Refresh registrations to show updated status
+      fetchRegistrations();
     } catch (error) {
       console.error('Error generating certificate:', error);
-      toast.error('Failed to generate certificate. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to generate certificate. Please try again.');
     }
   };
 
@@ -138,6 +141,8 @@ const RegistrationsManagement = () => {
   const confirmBulkGenerate = async () => {
     const approvedRegistrations = registrations.filter(r => r.status === 'approved');
     try {
+      setBulkGenerateConfirm(false);
+      
       // Group by event_id for bulk generation
       const eventGroups = approvedRegistrations.reduce((groups, reg) => {
         if (!groups[reg.event_id]) groups[reg.event_id] = [];
@@ -145,14 +150,24 @@ const RegistrationsManagement = () => {
         return groups;
       }, {});
 
+      let totalGenerated = 0;
       for (const eventId of Object.keys(eventGroups)) {
-        await certificatesAPI.generateBulk(eventId);
+        try {
+          const response = await certificatesAPI.generateBulk(eventId);
+          if (response.data?.generated) {
+            totalGenerated += response.data.generated;
+          }
+        } catch (err) {
+          console.error(`Error generating certificates for event ${eventId}:`, err);
+        }
       }
       
-      toast.success(`Successfully generated certificates for ${approvedRegistrations.length} participants!`);
+      toast.success(`Successfully generated ${totalGenerated || approvedRegistrations.length} certificates!`);
+      // Refresh registrations
+      fetchRegistrations();
     } catch (error) {
       console.error('Error generating bulk certificates:', error);
-      toast.error('Failed to generate certificates. Please try again.');
+      toast.error(error.response?.data?.message || 'Failed to generate certificates. Please try again.');
     }
   };
 

@@ -18,20 +18,44 @@ const markAbsentRegistrations = async () => {
     const hasAttendanceColumns = columns.length === 3;
     
     if (!hasAttendanceColumns) {
-      console.log('⚠️ Attendance columns not found in registrations table. Using event_registrations table instead.');
+      console.log('⚠️ Attendance columns not found in registrations table. Checking event_registrations table...');
       
-      // Use event_registrations table which should have the columns
+      // Check if event_registrations has attendance columns
+      const [erColumns] = await query(`
+        SELECT COLUMN_NAME 
+        FROM INFORMATION_SCHEMA.COLUMNS 
+        WHERE TABLE_NAME = 'event_registrations' 
+        AND COLUMN_NAME IN ('attendance_required', 'attendance_status', 'attendance_deadline')
+      `);
+      
+      const hasERAttendanceColumns = erColumns.length >= 2; // at least attendance_required and attendance_status
+      const hasDeadline = erColumns.some(col => col.COLUMN_NAME === 'attendance_deadline');
+      
+      if (!hasERAttendanceColumns) {
+        console.log('✅ No attendance columns found. Skipping absent registration check.');
+        return { marked: 0 };
+      }
+      
+      // Use event_registrations table - build query based on available columns
       const now = new Date();
-      const [absentRegistrations] = await query(`
-        SELECT er.id, er.user_id, er.event_id, er.attendance_deadline, e.title as event_title
+      let querySQL = `
+        SELECT er.id, er.user_id, er.event_id, e.title as event_title
         FROM event_registrations er
         INNER JOIN events e ON er.event_id = e.id
         WHERE er.attendance_required = TRUE
           AND er.attendance_status = 'pending'
-          AND er.attendance_deadline IS NOT NULL
-          AND er.attendance_deadline < ?
           AND er.status != 'cancelled'
-      `, [now]);
+      `;
+      
+      // Only add deadline check if column exists
+      if (hasDeadline) {
+        querySQL += ` AND er.attendance_deadline IS NOT NULL AND er.attendance_deadline < ?`;
+      } else {
+        // If no deadline column, use event end date as fallback
+        querySQL += ` AND CONCAT(COALESCE(e.end_date, e.event_date), ' ', COALESCE(e.end_time, '23:59:59')) < ?`;
+      }
+      
+      const [absentRegistrations] = await query(querySQL, [now]);
       
       if (absentRegistrations.length === 0) {
         console.log('✅ No absent registrations to mark');
@@ -81,17 +105,27 @@ const markAbsentRegistrations = async () => {
     // If columns exist, use the original query
     const now = new Date();
     
-    // Find registrations that passed attendance deadline but didn't attend
-    const [absentRegistrations] = await query(`
-      SELECT r.id, r.user_id, r.event_id, r.attendance_deadline, e.title as event_title
+    // Check if deadline column exists
+    const hasDeadline = columns.some(col => col.COLUMN_NAME === 'attendance_deadline');
+    
+    // Build query based on available columns
+    let querySQL = `
+      SELECT r.id, r.user_id, r.event_id, e.title as event_title
       FROM registrations r
       INNER JOIN events e ON r.event_id = e.id
       WHERE r.attendance_required = TRUE
         AND r.attendance_status = 'pending'
-        AND r.attendance_deadline IS NOT NULL
-        AND r.attendance_deadline < ?
         AND r.status != 'cancelled'
-    `, [now]);
+    `;
+    
+    if (hasDeadline) {
+      querySQL += ` AND r.attendance_deadline IS NOT NULL AND r.attendance_deadline < ?`;
+    } else {
+      // Use event end date as fallback
+      querySQL += ` AND CONCAT(COALESCE(e.end_date, e.event_date), ' ', COALESCE(e.end_time, '23:59:59')) < ?`;
+    }
+    
+    const [absentRegistrations] = await query(querySQL, [now]);
 
     if (absentRegistrations.length === 0) {
       console.log('✅ No absent registrations to mark');

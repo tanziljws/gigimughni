@@ -482,5 +482,45 @@ router.post('/generate-bulk', authenticateToken, requireAdmin, async (req, res) 
   }
 });
 
+// Download certificate as PDF
+router.get('/:id/download', authenticateToken, requireUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id || req.user.userId || req.user;
+
+    // Verify certificate belongs to user
+    const [certRows] = await query(
+      `SELECT c.*, e.title as event_title 
+       FROM certificates c
+       LEFT JOIN events e ON c.event_id = e.id
+       WHERE c.id = ? AND c.user_id = ?`,
+      [id, userId]
+    );
+
+    if (certRows.length === 0) {
+      return ApiResponse.forbidden(res, 'Certificate not found or access denied');
+    }
+
+    const certificate = certRows[0];
+    
+    // For now, return certificate data as JSON
+    // In production, you would generate a PDF here using a library like pdfkit or puppeteer
+    // This is a placeholder that returns the certificate data
+    return ApiResponse.success(res, {
+      certificate: {
+        id: certificate.id,
+        certificate_number: certificate.certificate_number,
+        event_title: certificate.event_title,
+        template_data: certificate.template_data ? JSON.parse(certificate.template_data) : null,
+        issued_at: certificate.issued_at
+      }
+    }, 'Certificate data retrieved. PDF generation can be implemented here.');
+
+  } catch (error) {
+    console.error('Download certificate error:', error);
+    return ApiResponse.error(res, 'Failed to download certificate');
+  }
+});
+
 module.exports = router;
 

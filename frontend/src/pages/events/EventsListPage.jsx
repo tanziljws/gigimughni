@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Search, Filter, Calendar, MapPin, Users, Tag } from 'lucide-react';
+import { Search, Calendar, MapPin, ChevronLeft, ChevronRight, Instagram, Facebook, Youtube, Twitter, Mail, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import api from '../../services/api';
 import Footer from '../../components/Footer';
@@ -11,6 +11,7 @@ const EventsListPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [categories, setCategories] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
@@ -18,6 +19,14 @@ const EventsListPage = () => {
     fetchEvents();
     fetchCategories();
   }, [selectedCategory]);
+
+  useEffect(() => {
+    // Auto-slide hero banner
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % 3);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchEvents = async () => {
     try {
@@ -43,22 +52,6 @@ const EventsListPage = () => {
     }
   };
 
-  const handleRegisterEvent = (eventId) => {
-    if (!isAuthenticated) {
-      // Redirect to login with return URL
-      navigate('/login', { state: { from: `/events/${eventId}` } });
-      return;
-    }
-    // Navigate to event detail for registration
-    navigate(`/events/${eventId}`);
-  };
-
-  const filteredEvents = events.filter(event => {
-    const matchesSearch = event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
-
   const formatDate = (dateString) => {
     if (!dateString) return 'TBA';
     return new Date(dateString).toLocaleDateString('id-ID', {
@@ -77,139 +70,240 @@ const EventsListPage = () => {
     }).format(price);
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@300;400;600;700;900&display=swap');
-        .font-bebas { font-family: 'Bebas Neue', cursive; }
-        .font-poppins { font-family: 'Poppins', sans-serif; }
-      `}</style>
+  const filteredEvents = events.filter(event => {
+    const matchesSearch = event.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         event.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch;
+  });
 
-      {/* Hero Header */}
-      <div className="relative bg-gradient-to-r from-purple-900 via-purple-800 to-pink-900 pt-24 pb-16">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="font-bebas text-5xl md:text-7xl text-white mb-4 tracking-wider">DISCOVER EVENTS</h1>
-          <p className="font-poppins text-xl text-purple-200 max-w-2xl mx-auto">Find and join amazing events happening around you</p>
+  // Hero banner slides (placeholder - bisa diisi dengan featured events)
+  const heroSlides = [
+    {
+      title: 'Temukan Event Terbaik',
+      subtitle: 'Jelajahi berbagai event menarik di sekitar Anda',
+      bgColor: 'from-blue-600 to-blue-800'
+    },
+    {
+      title: 'Daftar Sekarang',
+      subtitle: 'Bergabunglah dengan ribuan peserta lainnya',
+      bgColor: 'from-indigo-600 to-purple-600'
+    },
+    {
+      title: 'Event Berkualitas',
+      subtitle: 'Platform terpercaya untuk event Anda',
+      bgColor: 'from-blue-700 to-indigo-700'
+    }
+  ];
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Top Banner - Blue Gradient */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium">Daftarkan Eventmu Sekarang</span>
+            <div className="flex items-center gap-6">
+              <a href="#" className="hover:underline">Tentang Kami</a>
+              <a href="#" className="hover:underline">Cetak Tiket Gelang</a>
+              <a href="#" className="hover:underline">Customer Service</a>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Search & Filter Section */}
-      <div className="bg-white shadow-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            {/* Search Bar */}
+      {/* Navigation Bar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">EVENT YUKK</span>
+            </Link>
+
+            {/* Desktop Menu */}
+            <div className="hidden md:flex items-center gap-8">
+              <Link to="/" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Home</Link>
+              <Link to="/events" className="text-blue-600 font-semibold">Events</Link>
+              <Link to="/blog" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Blog</Link>
+              <Link to="/contact" className="text-gray-700 hover:text-blue-600 font-medium transition-colors">Contact</Link>
+            </div>
+
+            {/* Auth Buttons */}
+            <div className="flex items-center gap-3">
+              {isAuthenticated ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-gray-700 font-medium">{user?.full_name || user?.username}</span>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('user');
+                      window.location.href = '/login';
+                    }}
+                    className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="text-gray-700 hover:text-blue-600 font-medium transition-colors"
+                  >
+                    Masuk
+                  </Link>
+                  <Link
+                    to="/register"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Daftar
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Search Bar Section */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search events..."
+                placeholder="Cari berdasarkan artis, acara, atau nama tempat"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl font-poppins focus:outline-none focus:border-purple-500 transition-colors"
+                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            
-            {/* Category Filter */}
-            <div className="relative">
-              <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full md:w-64 pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl font-poppins focus:outline-none focus:border-purple-500 transition-colors appearance-none bg-white"
-              >
-                <option value="">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+            <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+              <span className="text-sm font-medium text-gray-700">ID</span>
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Events Grid */}
+      {/* Hero Banner/Slider Section */}
+      <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 h-64 md:h-80 overflow-hidden">
+        {heroSlides.map((slide, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              currentSlide === index ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <div className={`h-full bg-gradient-to-r ${slide.bgColor} flex items-center justify-center`}>
+              <div className="text-center text-white px-4">
+                <h2 className="text-3xl md:text-4xl font-bold mb-2">{slide.title}</h2>
+                <p className="text-lg md:text-xl opacity-90">{slide.subtitle}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {/* Slide Indicators */}
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2">
+          {heroSlides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentSlide(index)}
+              className={`w-2 h-2 rounded-full transition-all ${
+                currentSlide === index ? 'bg-white w-8' : 'bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Navigation Arrows */}
+        <button
+          onClick={() => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length)}
+          className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        <button
+          onClick={() => setCurrentSlide((prev) => (prev + 1) % heroSlides.length)}
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/20 hover:bg-white/30 text-white p-2 rounded-full transition-all"
+        >
+          <ChevronRight className="w-6 h-6" />
+        </button>
+      </div>
+
+      {/* Events Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <h2 className="text-3xl font-bold text-gray-900 mb-8">Event</h2>
+
         {loading ? (
           <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-600"></div>
           </div>
         ) : filteredEvents.length === 0 ? (
           <div className="text-center py-20">
             <Calendar className="w-20 h-20 text-gray-300 mx-auto mb-4" />
-            <h3 className="font-poppins text-2xl font-bold text-gray-700 mb-2">No Events Found</h3>
-            <p className="font-poppins text-gray-500">Try adjusting your search or filters</p>
+            <h3 className="text-2xl font-bold text-gray-700 mb-2">Tidak Ada Event Ditemukan</h3>
+            <p className="text-gray-500">Coba ubah kata kunci pencarian Anda</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredEvents.map((event) => (
               <div
                 key={event.id}
-                className="group bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer"
+                className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden group"
                 onClick={() => navigate(`/events/${event.id}`)}
               >
-                {/* Event Image */}
-                <div className="relative h-56 overflow-hidden">
+                {/* Event Poster */}
+                <div className="relative h-48 overflow-hidden bg-gray-100">
                   {event.image_url ? (
                     <img
                       src={`http://localhost:3000${event.image_url}`}
                       alt={event.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop';
+                      }}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                      <Calendar className="w-20 h-20 text-white/30" />
-                    </div>
-                  )}
-                  <div className="absolute top-4 right-4">
-                    <span className="px-4 py-2 bg-purple-600 text-white rounded-full text-sm font-poppins font-bold shadow-lg">
-                      {formatPrice(event.registration_fee || event.price)}
-                    </span>
-                  </div>
-                  {event.category_name && (
-                    <div className="absolute bottom-4 left-4">
-                      <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-purple-600 rounded-full text-xs font-poppins font-semibold">
-                        <Tag className="w-3 h-3 inline mr-1" />
-                        {event.category_name}
-                      </span>
+                    <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                      <Calendar className="w-16 h-16 text-gray-400" />
                     </div>
                   )}
                 </div>
 
                 {/* Event Content */}
-                <div className="p-6">
-                  <h3 className="font-poppins text-xl font-bold text-gray-800 mb-3 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                <div className="p-5">
+                  {/* Title */}
+                  <h3 className="text-lg font-bold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-600 transition-colors">
                     {event.title}
                   </h3>
-                  
-                  <p className="font-poppins text-gray-600 text-sm line-clamp-2 mb-4">
-                    {event.description}
-                  </p>
 
+                  {/* Date & Location */}
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Calendar className="w-4 h-4 text-purple-600" />
-                      <span className="font-poppins text-sm">{formatDate(event.event_date)}</span>
+                    <div className="flex items-center gap-2 text-gray-600 text-sm">
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span>{formatDate(event.event_date)}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin className="w-4 h-4 text-pink-600" />
-                      <span className="font-poppins text-sm line-clamp-1">{event.location || 'TBA'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-gray-600">
-                      <Users className="w-4 h-4 text-green-600" />
-                      <span className="font-poppins text-sm">{event.approved_registrations || 0} / {event.max_participants || '∞'} registered</span>
+                    <div className="flex items-center gap-2 text-gray-600 text-sm">
+                      <MapPin className="w-4 h-4 flex-shrink-0" />
+                      <span className="line-clamp-1">{event.location || 'Lokasi TBA'}</span>
                     </div>
                   </div>
 
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRegisterEvent(event.id);
-                    }}
-                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-poppins font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105"
-                  >
-                    {isAuthenticated ? 'Register Now' : 'Login to Register'}
-                  </button>
+                  {/* Price */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span className="text-sm text-gray-500">Mulai Dari</span>
+                    <span className="text-lg font-bold text-gray-900">
+                      {formatPrice(event.price || 0)}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -217,6 +311,7 @@ const EventsListPage = () => {
         )}
       </div>
 
+      {/* Enhanced Footer */}
       <Footer />
     </div>
   );

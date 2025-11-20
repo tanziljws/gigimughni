@@ -98,7 +98,7 @@ router.post('/', async (req, res) => {
                 </div>
                 
                 <div style="text-align: center;">
-                  <a href="http://localhost:5173/admin/contacts" class="button">View in Admin Panel</a>
+                  <a href="${process.env.FRONTEND_URL || 'https://fronten.up.railway.app'}/admin/contacts" class="button">View in Admin Panel</a>
                 </div>
                 
                 <div class="footer">
@@ -323,7 +323,7 @@ router.post('/:id/reply', authenticateToken, requireRole(['admin']), async (req,
                   </div>
 
                   <div style="text-align: center; margin-top: 30px;">
-                    <a href="http://localhost:5173/contact" class="btn">Kunjungi Event Yukk</a>
+                    <a href="${process.env.FRONTEND_URL || 'https://fronten.up.railway.app'}/contact" class="btn">Kunjungi Event Yukk</a>
                   </div>
 
                   <div class="footer">

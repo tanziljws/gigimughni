@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FadeInUp, FadeInLeft, FadeInRight, ScaleIn, StaggerContainer, StaggerItem, HoverScale, RevealOnScroll, RotateIn } from '../../components/ScrollAnimation';
 import { useAuth } from '../../contexts/AuthContext';
 import { eventsAPI } from '../../services/api';
-import api from '../../services/api';
+import api, { BACKEND_BASE_URL } from '../../services/api';
+import { getBackendBaseUrl } from '../../lib/imageUtils';
 import Footer from '../../components/Footer';
 
 // Helper function to get category icons (Lucide React)
@@ -123,7 +124,8 @@ const HomePage = () => {
       
       try {
         // Fetch highlighted event for hero section
-        const highlightedResponse = await fetch('http://localhost:3000/api/events/highlighted/event');
+        const backendUrl = getBackendBaseUrl();
+        const highlightedResponse = await fetch(`${backendUrl}/api/events/highlighted/event`);
         const highlightedData = await highlightedResponse.json();
         
         console.log('✅ Highlighted event response:', highlightedData);
@@ -134,7 +136,7 @@ const HomePage = () => {
           
           // Extract color from event image
           if (highlightedData.data.image_url) {
-            const imageUrl = `http://localhost:3000${highlightedData.data.image_url}`;
+            const imageUrl = `${backendUrl}${highlightedData.data.image_url}`;
             extractDominantColor(imageUrl);
           }
         } else {
@@ -154,7 +156,7 @@ const HomePage = () => {
           
           // Extract color from event image
           if (events[0].image_url || events[0].image) {
-            const imageUrl = `http://localhost:3000${events[0].image_url || events[0].image}`;
+            const imageUrl = `${backendUrl}${events[0].image_url || events[0].image}`;
             extractDominantColor(imageUrl);
           }
         }
@@ -169,7 +171,7 @@ const HomePage = () => {
         }
         
         // Fetch categories with error handling
-        const categoriesResponse = await fetch('http://localhost:3000/api/categories');
+        const categoriesResponse = await fetch(`${backendUrl}/api/categories`);
         
         if (!categoriesResponse.ok) {
           console.error('Categories API error:', categoriesResponse.status, categoriesResponse.statusText);
@@ -472,7 +474,7 @@ const HomePage = () => {
             className="absolute inset-0 bg-cover bg-center"
             style={{
               backgroundImage: featuredEvent?.image_url 
-                ? `url(http://localhost:3000${featuredEvent.image_url})`
+                ? `url(${getBackendBaseUrl()}${featuredEvent.image_url})`
                 : 'url(https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1920&h=1080&fit=crop)',
             }}
             initial={{ scale: 1.1, opacity: 0 }}
@@ -544,11 +546,10 @@ const HomePage = () => {
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
                   {featuredEvent.image_url ? (
                     <img 
-                      src={`http://localhost:3000${featuredEvent.image_url}`}
+                      src={`${backendUrl}${featuredEvent.image_url}`}
                       alt={featuredEvent.title}
                       className="w-full h-[500px] object-cover transform group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
-                        console.error('Image failed to load:', featuredEvent.image_url);
                         e.target.src = 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800';
                       }}
                     />
@@ -1071,7 +1072,7 @@ const HomePage = () => {
         </div>
 
         {/* CSS for floating animation */}
-        <style jsx>{`
+        <style>{`
           @keyframes float {
             0%, 100% {
               transform: translateY(0) translateX(0);
@@ -1136,9 +1137,12 @@ const HomePage = () => {
               >
                 <div className="relative h-72 overflow-hidden">
                   <img
-                    src={event.image_url ? `http://localhost:3000${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop'}
+                    src={event.image_url ? `${backendUrl}${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop'}
                     alt={event.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop';
+                    }}
                   />
                   <div className="absolute bottom-4 left-4 flex items-center gap-2 text-white">
                     <MapPin className="w-5 h-5" />
@@ -1238,9 +1242,12 @@ const HomePage = () => {
               >
                 <div className="relative h-80 overflow-hidden">
                   <img
-                    src={event.image_url ? `http://localhost:3000${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop'}
+                    src={event.image_url ? `${backendUrl}${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop'}
                     alt={event.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => {
+                      e.target.src = 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop';
+                    }}
                   />
                   <div className="absolute top-6 right-6">
                     <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-full text-sm font-poppins font-bold shadow-lg">

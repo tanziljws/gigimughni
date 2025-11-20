@@ -45,8 +45,12 @@ const upload = multer({
 // Get all events (public)
 router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', category_id = '', upcoming = '', sort_by = 'date_asc' } = req.query;
-    const offset = (page - 1) * limit;
+    const { page = 1, limit = 10, search = '', category_id = '', upcoming = '', sort_by = 'date_asc', status = '' } = req.query;
+    
+    // Ensure limit and page are valid integers
+    const limitNum = parseInt(limit) || 10;
+    const pageNum = parseInt(page) || 1;
+    const offset = (pageNum - 1) * limitNum;
 
     // Filter: only active events that are NOT archived
     let whereClause = "WHERE e.is_active = 1 AND e.status != 'archived'";
@@ -59,7 +63,12 @@ router.get('/', async (req, res) => {
 
     if (category_id) {
       whereClause += ' AND e.category_id = ?';
-      params.push(category_id);
+      params.push(parseInt(category_id));
+    }
+
+    if (status && status.trim() !== '') {
+      whereClause += ' AND e.status = ?';
+      params.push(status);
     }
 
     if (upcoming === 'true') {
@@ -97,6 +106,7 @@ router.get('/', async (req, res) => {
     );
 
     // Get events with category info and registration count
+    // Use direct values for LIMIT and OFFSET (not parameters) to avoid MySQL2 issues
     const [events] = await query(
       `SELECT e.*, c.name as category_name, e.image as image_url,
               (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status = 'confirmed') as approved_registrations,
@@ -109,17 +119,17 @@ router.get('/', async (req, res) => {
        LEFT JOIN categories c ON e.category_id = c.id 
        ${whereClause}
        ${orderClause}
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       LIMIT ${limitNum} OFFSET ${offset}`,
+      params
     );
 
     const result = {
       events,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: pageNum,
+        limit: limitNum,
         total: countResult[0].total,
-        total_pages: Math.ceil(countResult[0].total / limit)
+        total_pages: Math.ceil(countResult[0].total / limitNum)
       }
     };
 
