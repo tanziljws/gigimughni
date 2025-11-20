@@ -184,35 +184,95 @@ app.use((error, req, res, next) => {
   });
 });
 
+// ⚠️ CRITICAL: Global error handlers - MUST be before app.listen
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 UNCAUGHT EXCEPTION! Shutting down...');
+  console.error('Error:', error);
+  console.error('Stack:', error.stack);
+  // Don't exit immediately - let Railway handle it
+  // process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 UNHANDLED REJECTION!');
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+  // Don't exit immediately - let Railway handle it
+  // process.exit(1);
+});
+
+// Graceful shutdown handlers
+process.on('SIGTERM', () => {
+  console.log('⚠️ SIGTERM received. Shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('⚠️ SIGINT received. Shutting down gracefully...');
+  process.exit(0);
+});
+
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+// Wrap server startup in try-catch to prevent crashes
+let server;
+try {
+  server = app.listen(PORT, '0.0.0.0', async () => {
+    console.log(`🚀 Server is running on port ${PORT}`);
+    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    
+    console.log('✅ All routes registered successfully\n');
+    
+    // Run database migrations first - wrapped in try-catch
+    console.log('🔄 Running database migrations...');
+    try {
+      await runMigrations();
+      console.log('✅ Migrations completed');
+    } catch (error) {
+      console.error('❌ Migration failed:', error);
+      console.error('⚠️ Continuing server startup despite migration error...');
+    }
+    
+    // Run initial cleanup on server start - wrapped in try-catch
+    console.log('🧹 Running initial event archival...');
+    try {
+      const result = await archiveEndedEvents();
+      console.log(`✅ Initial archival complete: ${result.archived} events archived`);
+    } catch (error) {
+      console.error('❌ Initial archival failed:', error);
+      console.error('⚠️ Continuing server startup despite archival error...');
+    }
+    
+    // Initialize cron jobs for automatic archival - wrapped in try-catch
+    try {
+      initCronJobs();
+      console.log('✅ Cron jobs initialized');
+    } catch (error) {
+      console.error('❌ Cron jobs initialization failed:', error);
+      console.error('⚠️ Continuing server startup despite cron error...');
+    }
+    
+    console.log('\n✅ Server fully initialized and ready to accept requests!\n');
+  });
   
-  console.log('✅ All routes registered successfully\n');
+  // Handle server errors
+  server.on('error', (error) => {
+    if (error.code === 'EADDRINUSE') {
+      console.error(`❌ Port ${PORT} is already in use`);
+    } else {
+      console.error('❌ Server error:', error);
+    }
+    process.exit(1);
+  });
   
-  // Run database migrations first
-  console.log('🔄 Running database migrations...');
-  try {
-    await runMigrations();
-  } catch (error) {
-    console.error('❌ Migration failed:', error);
-  }
-  
-  // Run initial cleanup on server start
-  console.log('🧹 Running initial event archival...');
-  try {
-    const result = await archiveEndedEvents();
-    console.log(`✅ Initial archival complete: ${result.archived} events archived`);
-  } catch (error) {
-    console.error('❌ Initial archival failed:', error);
-  }
-  
-  // Initialize cron jobs for automatic archival
-  initCronJobs();
-});
+} catch (error) {
+  console.error('💥 FATAL ERROR during server startup:', error);
+  console.error('Stack:', error.stack);
+  process.exit(1);
+}
 
 module.exports = app;
 
