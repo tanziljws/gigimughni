@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { eventsAPI, categoriesAPI } from '../../services/api';
+import { eventsAPI, categoriesAPI, BACKEND_BASE_URL } from '../../services/api';
 import { 
   Sparkles, 
   Laptop, 
