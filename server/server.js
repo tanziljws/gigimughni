@@ -1,7 +1,11 @@
 // Early logging to track startup
+console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log('🚀 Starting server initialization...');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log('📋 Environment:', process.env.NODE_ENV || 'development');
-console.log('📋 PORT:', process.env.PORT || '3000');
+console.log('📋 process.env.PORT:', process.env.PORT || 'NOT SET (will use default 3000)');
+console.log('📋 process.env.DB_HOST:', process.env.DB_HOST || 'NOT SET');
+console.log('📋 process.env.FRONTEND_URL:', process.env.FRONTEND_URL || 'NOT SET');
 
 const express = require('express');
 const cors = require('cors');
@@ -260,48 +264,71 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+// ⚠️ CRITICAL: PORT must come from environment variable for Railway
 const PORT = process.env.PORT || 3000;
+
+// Log PORT to verify it's correct
+console.log(`\n🔍 PORT Configuration:`);
+console.log(`   - process.env.PORT: ${process.env.PORT || 'NOT SET (using default 3000)'}`);
+console.log(`   - Final PORT: ${PORT}`);
+console.log(`   - Will listen on: 0.0.0.0:${PORT}\n`);
 
 // Wrap server startup in try-catch to prevent crashes
 let server;
 try {
-  server = app.listen(PORT, '0.0.0.0', async () => {
+  // ⚠️ CRITICAL: Listen on 0.0.0.0 (all interfaces) for Railway
+  // ⚠️ CRITICAL: PORT must be from process.env.PORT, not hardcoded
+  server = app.listen(PORT, '0.0.0.0', () => {
+    // ⚠️ IMPORTANT: This callback is synchronous - server is NOW listening
+    console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+    console.log(`✅ SERVER IS NOW LISTENING ON PORT ${PORT}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
     console.log(`🚀 Server is running on port ${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+    console.log(`📊 Health check: http://0.0.0.0:${PORT}/api/health`);
     console.log(`🌐 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌍 Listening on: 0.0.0.0 (all network interfaces)`);
+    console.log(`\n✅ Server socket is OPEN and ready to accept connections!\n`);
     
-    console.log('✅ All routes registered successfully\n');
-    
-    // Run database migrations first - wrapped in try-catch
-    console.log('🔄 Running database migrations...');
-    try {
-      await runMigrations();
-      console.log('✅ Migrations completed');
-    } catch (error) {
-      console.error('❌ Migration failed:', error);
-      console.error('⚠️ Continuing server startup despite migration error...');
-    }
-    
-    // Run initial cleanup on server start - wrapped in try-catch
-    console.log('🧹 Running initial event archival...');
-    try {
-      const result = await archiveEndedEvents();
-      console.log(`✅ Initial archival complete: ${result.archived} events archived`);
-    } catch (error) {
-      console.error('❌ Initial archival failed:', error);
-      console.error('⚠️ Continuing server startup despite archival error...');
-    }
-    
-    // Initialize cron jobs for automatic archival - wrapped in try-catch
-    try {
-      initCronJobs();
-      console.log('✅ Cron jobs initialized');
-    } catch (error) {
-      console.error('❌ Cron jobs initialization failed:', error);
-      console.error('⚠️ Continuing server startup despite cron error...');
-    }
-    
-    console.log('\n✅ Server fully initialized and ready to accept requests!\n');
+    // Run async operations AFTER server is listening
+    (async () => {
+      try {
+        console.log('✅ All routes registered successfully\n');
+        
+        // Run database migrations first - wrapped in try-catch
+        console.log('🔄 Running database migrations...');
+        try {
+          await runMigrations();
+          console.log('✅ Migrations completed');
+        } catch (error) {
+          console.error('❌ Migration failed:', error.message);
+          console.error('⚠️ Continuing server startup despite migration error...');
+        }
+        
+        // Run initial cleanup on server start - wrapped in try-catch
+        console.log('🧹 Running initial event archival...');
+        try {
+          const result = await archiveEndedEvents();
+          console.log(`✅ Initial archival complete: ${result.archived} events archived`);
+        } catch (error) {
+          console.error('❌ Initial archival failed:', error.message);
+          console.error('⚠️ Continuing server startup despite archival error...');
+        }
+        
+        // Initialize cron jobs for automatic archival - wrapped in try-catch
+        try {
+          initCronJobs();
+          console.log('✅ Cron jobs initialized');
+        } catch (error) {
+          console.error('❌ Cron jobs initialization failed:', error.message);
+          console.error('⚠️ Continuing server startup despite cron error...');
+        }
+        
+        console.log('\n✅ Server fully initialized and ready to accept requests!\n');
+      } catch (error) {
+        console.error('❌ Error during async initialization:', error);
+        console.error('⚠️ Server is still running and accepting requests');
+      }
+    })();
   });
   
   // Handle server errors
