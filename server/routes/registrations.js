@@ -222,7 +222,9 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
       }
     }
 
-    const registrationStatus = isFreeEvent ? 'confirmed' : 'pending';
+    // ⚠️ FIX: event_registrations status enum is ('pending','approved','cancelled','attended')
+    // Use 'approved' instead of 'confirmed' for free events
+    const registrationStatus = isFreeEvent ? 'approved' : 'pending';
     const paymentStatus = isFreeEvent ? 'paid' : 'pending';
     const paymentAmount = parseFloat(event.price || 0);
 
@@ -325,65 +327,33 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     }
 
     // Create event registration (main reference for attendance & admin screens)
-    // Try to insert with all fields first, if fails try with minimal fields
+    // ⚠️ FIX: event_registrations table doesn't have full_name, email, phone, etc.
+    // Use only columns that exist in the table
     let eventInsert;
     let eventRegistrationId;
     
     try {
-      // Try inserting with all fields (if migration 033 has been run)
+      // Insert with only fields that exist in event_registrations table
+      // Based on DESCRIBE: id, user_id, event_id, payment_method, payment_amount, status, registration_fee, payment_status, payment_date, notes, created_at, updated_at
       [eventInsert] = await query(
         `INSERT INTO event_registrations
-         (user_id, event_id, full_name, phone, email, address, city, province, institution, payment_method, payment_amount, payment_status, status, attendance_required, attendance_status, attendance_deadline, notes) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'pending', ?, ?)`,
+         (user_id, event_id, payment_method, payment_amount, payment_status, status, notes) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
         [
           req.user.id,
           event_id,
-          registrantName,
-          registrantPhone,
-          registrantEmail,
-          registrantAddress,
-          registrantCity,
-          registrantProvince,
-          registrantInstitution,
           payment_method,
           paymentAmount,
           paymentStatus,
-          registrationStatus,
-          attendanceDeadlineFormatted,
+          registrationStatus, // 'confirmed' for free events, 'pending' for paid
           notes || ''
         ]
       );
       eventRegistrationId = eventInsert.insertId;
-      console.log('✅ Event registration created with all fields:', eventRegistrationId);
+      console.log('✅ Event registration created:', eventRegistrationId);
     } catch (insertError) {
-      // If error is about missing columns, try with minimal fields
-      if (insertError.code === 'ER_BAD_FIELD_ERROR' || insertError.message.includes('Unknown column')) {
-        console.warn('⚠️ Full fields not available, trying minimal fields...');
-        try {
-          // Insert with only basic fields that should exist (without attendance columns)
-          [eventInsert] = await query(
-            `INSERT INTO event_registrations
-             (user_id, event_id, payment_method, payment_amount, payment_status, status) 
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-              req.user.id,
-              event_id,
-              payment_method,
-              paymentAmount,
-              paymentStatus,
-              registrationStatus
-            ]
-          );
-          eventRegistrationId = eventInsert.insertId;
-          console.log('✅ Event registration created with minimal fields:', eventRegistrationId);
-        } catch (minimalError) {
-          console.error('❌ Failed to insert with minimal fields:', minimalError);
-          throw minimalError;
-        }
-      } else {
-        // If it's a different error, throw it
-        throw insertError;
-      }
+      console.error('❌ Failed to create event registration:', insertError);
+      throw insertError;
     }
 
     let tokenData = null;
@@ -431,7 +401,7 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
       ...registrations[0],
       token: tokenData?.token || null,
       tokenExpiresAt: tokenData?.expiresAt || null
-    }, registrationStatus === 'confirmed'
+    }, (registrationStatus === 'confirmed' || registrationStatus === 'approved')
       ? 'Registration created successfully. Attendance token has been sent to your email.'
       : 'Registration created successfully. Silakan selesaikan pembayaran untuk menerima token kehadiran.'
     );

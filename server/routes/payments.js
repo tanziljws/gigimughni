@@ -6,11 +6,21 @@ const ApiResponse = require('../middleware/response');
 
 const router = express.Router();
 
-// Initialize Midtrans Snap (Sandbox Mode)
+// Initialize Midtrans Snap
+// ⚠️ FIX: Check if we're in production or development
+const isProduction = process.env.NODE_ENV === 'production' && 
+                     process.env.MIDTRANS_SERVER_KEY && 
+                     !process.env.MIDTRANS_SERVER_KEY.includes('SB-Mid-server');
 const snap = new midtransClient.Snap({
-  isProduction: false, // Sandbox mode
+  isProduction: isProduction,
   serverKey: process.env.MIDTRANS_SERVER_KEY || 'SB-Mid-server-your-server-key-here',
   clientKey: process.env.MIDTRANS_CLIENT_KEY || 'SB-Mid-client-your-client-key-here'
+});
+
+console.log('💳 Midtrans initialized:', {
+  isProduction,
+  hasServerKey: !!process.env.MIDTRANS_SERVER_KEY,
+  hasClientKey: !!process.env.MIDTRANS_CLIENT_KEY
 });
 
 // Create payment transaction for paid event
@@ -236,6 +246,7 @@ router.post('/notification', async (req, res) => {
       );
 
       // Update registrations (legacy table)
+      // ⚠️ FIX: registrations table uses 'confirmed' status
       await query(
         'UPDATE registrations SET status = "confirmed", payment_status = "paid", updated_at = CURRENT_TIMESTAMP WHERE event_id = ? AND user_id = ?',
         [payment.event_id, payment.user_id]
