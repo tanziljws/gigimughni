@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start": "serve -s dist -l $PORT"
+    "start": "serve dist -l $PORT --single"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.0.0",

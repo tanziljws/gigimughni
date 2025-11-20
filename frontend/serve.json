@@ -1,0 +1,34 @@
+{
+  "public": "dist",
+  "rewrites": [
+    {
+      "source": "/assets/**",
+      "destination": "/assets/:match*"
+    },
+    {
+      "source": "**",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/assets/**/*.css",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/css"
+        }
+      ]
+    },
+    {
+      "source": "/assets/**/*.js",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/javascript"
+        }
+      ]
+    }
+  ]
+}
+
