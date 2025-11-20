@@ -135,8 +135,7 @@ const HomePage = () => {
           
           // Extract color from event image
           if (highlightedData.data.image_url) {
-            const backendUrl = getBackendBaseUrl();
-            const imageUrl = `${backendUrl}${highlightedData.data.image_url}`;
+            const imageUrl = `${BACKEND_BASE_URL}${highlightedData.data.image_url}`;
             extractDominantColor(imageUrl);
           }
         } else {
@@ -156,7 +155,7 @@ const HomePage = () => {
           
           // Extract color from event image
           if (events[0].image_url || events[0].image) {
-            const imageUrl = `${backendUrl}${events[0].image_url || events[0].image}`;
+            const imageUrl = `${BACKEND_BASE_URL}${events[0].image_url || events[0].image}`;
             extractDominantColor(imageUrl);
           }
         }
@@ -171,7 +170,7 @@ const HomePage = () => {
         }
         
         // Fetch categories with error handling
-        const categoriesResponse = await fetch(`${backendUrl}/api/categories`);
+        const categoriesResponse = await fetch(`${BACKEND_BASE_URL}/api/categories`);
         
         if (!categoriesResponse.ok) {
           console.error('Categories API error:', categoriesResponse.status, categoriesResponse.statusText);
@@ -546,7 +545,7 @@ const HomePage = () => {
                 <div className="relative rounded-2xl overflow-hidden shadow-2xl group">
                   {featuredEvent.image_url ? (
                     <img 
-                      src={`${backendUrl}${featuredEvent.image_url}`}
+                      src={`${BACKEND_BASE_URL}${featuredEvent.image_url}`}
                       alt={featuredEvent.title}
                       className="w-full h-[500px] object-cover transform group-hover:scale-105 transition-transform duration-500"
                       onError={(e) => {
@@ -1137,7 +1136,7 @@ const HomePage = () => {
               >
                 <div className="relative h-72 overflow-hidden">
                   <img
-                    src={event.image_url ? `${backendUrl}${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop'}
+                    src={event.image_url ? `${BACKEND_BASE_URL}${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&h=400&fit=crop'}
                     alt={event.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     onError={(e) => {
@@ -1242,7 +1241,7 @@ const HomePage = () => {
               >
                 <div className="relative h-80 overflow-hidden">
                   <img
-                    src={event.image_url ? `${backendUrl}${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop'}
+                    src={event.image_url ? `${BACKEND_BASE_URL}${event.image_url}` : 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop'}
                     alt={event.title}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     onError={(e) => {
