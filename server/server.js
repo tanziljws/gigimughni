@@ -10,6 +10,22 @@ const { runMigrations } = require('./migrations/runMigration');
 
 const app = express();
 
+// ⚠️ CRITICAL: Handle OPTIONS requests FIRST - before ANY other middleware
+// This prevents redirect issues with preflight requests
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", process.env.FRONTEND_URL || "https://fronten.up.railway.app");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, Cache-Control, Pragma, Expires, X-Requested-With, Accept, Origin");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Max-Age", "86400");
+  
+  // Handle preflight OPTIONS request - return immediately, NO redirect
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // CORS configuration - MUST be before helmet to work properly
 const allowedOrigins = [
   'http://localhost:5173',
@@ -20,33 +36,7 @@ const allowedOrigins = [
   'https://fronten.up.railway.app' // Production frontend URL
 ].filter(Boolean); // Remove undefined values
 
-// Handle preflight OPTIONS requests FIRST - before CORS middleware
-app.options('*', cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
-      callback(null, true);
-    } else {
-      callback(null, true); // Allow all for preflight
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'Cache-Control', 
-    'Pragma', 
-    'Expires',
-    'X-Requested-With',
-    'Accept',
-    'Origin'
-  ],
-  maxAge: 86400,
-  optionsSuccessStatus: 204
-}));
-
-// CORS middleware for all other requests
+// CORS middleware for all other requests - STRICT origin (no wildcard in production)
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -157,8 +147,12 @@ app.use('/api/admin/reports', reportsRoutes);
 
 console.log('✅ Reports routes registered at /api/admin/reports');
 
-// 404 handler
+// 404 handler - BUT skip for OPTIONS requests (already handled above)
 app.use('*', (req, res) => {
+  // Don't handle OPTIONS here - already handled by explicit handler above
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   res.status(404).json({
     success: false,
     message: 'Route not found'
