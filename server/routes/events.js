@@ -553,8 +553,8 @@ router.get('/category/:categoryId', async (req, res) => {
        LEFT JOIN categories c ON e.category_id = c.id 
        WHERE e.category_id = ? AND e.is_active = 1
        ORDER BY e.event_date ASC 
-       LIMIT ? OFFSET ?`,
-      [categoryId, parseInt(limit), offset]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      [categoryId]
     );
 
     const result = {
@@ -603,8 +603,8 @@ router.get('/search/events', async (req, res) => {
        WHERE e.is_active = 1 AND 
              (e.title LIKE ? OR e.description LIKE ? OR e.location LIKE ?)
        ORDER BY e.event_date ASC 
-       LIMIT ? OFFSET ?`,
-      [`%${q}%`, `%${q}%`, `%${q}%`, parseInt(limit), offset]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      [`%${q}%`, `%${q}%`, `%${q}%`]
     );
 
     const result = {

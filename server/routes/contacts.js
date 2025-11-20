@@ -154,8 +154,8 @@ router.get('/', authenticateToken, requireRole(['admin']), async (req, res) => {
       LEFT JOIN users u ON c.replied_by = u.id
       ${whereClause}
       ORDER BY c.created_at DESC
-      LIMIT ? OFFSET ?
-    `, [...queryParams, limit, offset]);
+      LIMIT ${parseInt(limit)} OFFSET ${offset}
+    `, queryParams);
 
     const [countResult] = await query(`
       SELECT COUNT(*) as total FROM contacts ${whereClause}

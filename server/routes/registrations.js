@@ -71,8 +71,8 @@ router.get('/my-registrations', async (req, res) => {
        LEFT JOIN attendance_tokens at ON at.user_id = er.user_id AND at.event_id = er.event_id
        ${whereClause}
        ORDER BY er.created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), offset]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      params
     );
 
     const result = {

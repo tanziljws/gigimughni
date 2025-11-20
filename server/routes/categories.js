@@ -35,8 +35,8 @@ router.get('/', async (req, res) => {
     
     if (page && limit) {
       const offset = (page - 1) * limit;
-      categoriesQuery += ' LIMIT ? OFFSET ?';
-      queryParams.push(parseInt(limit), parseInt(offset));
+      // ⚠️ FIX: LIMIT and OFFSET must be in query string, not as parameters (mysql2 issue)
+      categoriesQuery += ` LIMIT ${parseInt(limit)} OFFSET ${offset}`;
     }
 
     const [categories] = await query(categoriesQuery, queryParams);

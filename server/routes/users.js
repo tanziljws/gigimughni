@@ -64,6 +64,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
       params.push(status === 'active' ? 1 : 0);
     }
 
+    // ⚠️ FIX: LIMIT and OFFSET must be in query string, not as parameters (mysql2 issue)
     const [users] = await query(
       `SELECT id, username, email, full_name, phone, role, avatar, is_active, created_at, updated_at,
        (SELECT COUNT(*) FROM events WHERE organizer_id = users.id) as events_count,
@@ -71,8 +72,8 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
        FROM users 
        WHERE ${whereClause} 
        ORDER BY created_at DESC 
-       LIMIT ? OFFSET ?`,
-      [...params, parseInt(limit), parseInt(offset)]
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      params
     );
 
     const [totalResult] = await query(
