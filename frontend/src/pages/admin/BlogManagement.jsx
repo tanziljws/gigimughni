@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FileText, Edit2, Trash2, Plus, Search, Filter } from 'lucide-react';
 import { useToast } from '../../contexts/ToastContext';
 import ConfirmModal from '../../components/ConfirmModal';
-import { blogsAPI } from '../../services/api';
+import { blogsAPI, BACKEND_BASE_URL } from '../../services/api';
 
 const BlogManagement = () => {
   const toast = useToast();
