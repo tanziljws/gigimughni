@@ -10,10 +10,7 @@ const { runMigrations } = require('./migrations/runMigration');
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
-
-// CORS configuration - support both development and production
+// CORS configuration - MUST be before helmet to work properly
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
@@ -43,8 +40,20 @@ app.use(cors({
     'Cache-Control', 
     'Pragma', 
     'Expires',
-    'X-Requested-With'
-  ]
+    'X-Requested-With',
+    'Accept',
+    'Origin'
+  ],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400, // 24 hours
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
+
+// Security middleware - AFTER CORS
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
 }));
 
 // Rate limiting - more generous for development
