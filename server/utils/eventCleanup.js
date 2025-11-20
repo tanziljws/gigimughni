@@ -234,12 +234,13 @@ const archiveEndedEvents = async () => {
       }
 
       try {
-        // Update event status to archived
+        // Update event status to completed (archived via is_active = FALSE)
+        // Note: Using 'completed' instead of 'archived' because ENUM doesn't include 'archived'
         await query(`
           UPDATE events 
           SET 
             is_active = FALSE,
-            status = 'archived',
+            status = 'completed',
             updated_at = NOW()
           WHERE id = ?
         `, [event.id]);
@@ -325,7 +326,7 @@ const getArchivedEvents = async () => {
       LEFT JOIN event_registrations r ON e.id = r.event_id
       LEFT JOIN certificates c ON c.event_id = e.id
       LEFT JOIN categories c2 ON e.category_id = c2.id
-      WHERE e.status = 'archived' OR e.is_active = FALSE
+      WHERE e.status = 'completed' OR e.is_active = FALSE
       GROUP BY e.id
       ORDER BY e.event_date DESC
     `);

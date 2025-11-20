@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     // Filter: only active events that are NOT archived
-    let whereClause = "WHERE e.is_active = 1 AND e.status != 'archived'";
+    let whereClause = "WHERE e.is_active = 1 AND e.status != 'completed'";
     let params = [];
 
     if (search) {
@@ -154,7 +154,7 @@ router.get('/:id', async (req, res) => {
               (SELECT COUNT(*) FROM event_registrations WHERE event_id = e.id AND status = 'confirmed') as approved_registrations
        FROM events e 
        LEFT JOIN categories c ON e.category_id = c.id 
-       WHERE e.id = ? ${!isAdmin ? 'AND e.is_active = 1 AND e.status != \'archived\'' : ''}`,
+       WHERE e.id = ? ${!isAdmin ? 'AND e.is_active = 1 AND e.status != \'completed\'' : ''}`,
       [id]
     );
 
