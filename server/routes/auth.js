@@ -102,7 +102,9 @@ router.post('/register', validateUserRegistration, handleValidationErrors, async
     }
 
     // Hash password
-    const saltRounds = 12;
+    // ⚠️ FIX: Reduced saltRounds from 12 to 10 for faster hashing (still secure, but faster)
+    // 10 rounds = ~100ms, 12 rounds = ~400ms (can cause timeout on slow connections)
+    const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create user (INACTIVE until email verification)

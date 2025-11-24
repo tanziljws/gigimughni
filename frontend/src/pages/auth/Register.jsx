@@ -210,8 +210,29 @@ const RegisterPage = () => {
       console.error('Error response:', error.response?.data);
       console.error('Error details:', JSON.stringify(error.response?.data, null, 2));
       
-      // ⚠️ FIX: Better error handling - show validation errors clearly
+      // ⚠️ FIX: Better error handling - handle timeout and 409 specifically
       let errorMessage = 'Terjadi kesalahan saat registrasi. Silakan coba lagi.';
+      
+      // 🔥 FIX: Handle timeout error - backend might have succeeded
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        errorMessage = 'Registrasi sedang diproses. Silakan tunggu beberapa saat, lalu coba login dengan akun Anda.\n\nJika masih belum bisa login, silakan coba registrasi lagi.';
+        setMessage(errorMessage);
+        setLoading(false);
+        return; // Don't show generic error, just suggest to try login
+      }
+      
+      // 🔥 FIX: Handle 409 Conflict - user already exists
+      if (error.response?.status === 409) {
+        const errorData = error.response.data;
+        if (errorData?.message?.includes('already exists')) {
+          errorMessage = 'Email atau username sudah terdaftar. Silakan gunakan email/username lain, atau coba login jika Anda sudah memiliki akun.';
+        } else {
+          errorMessage = errorData?.message || 'Akun dengan email atau username ini sudah terdaftar.';
+        }
+        setMessage(errorMessage);
+        setLoading(false);
+        return;
+      }
       
       if (error.response?.data) {
         const errorData = error.response.data;
