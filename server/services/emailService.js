@@ -57,7 +57,8 @@ class EmailService {
         return { success: true, fallback: true };
       }
 
-      const info = await this.transporter.sendMail({
+      // 🔥 FIX: Add timeout to email sending (max 10 seconds)
+      const emailPromise = this.transporter.sendMail({
         from: `"Event Yukk" <${process.env.SMTP_USER}>`,
         to,
         subject,
@@ -65,11 +66,19 @@ class EmailService {
         html,
       });
 
+      // Set timeout for email sending (10 seconds max)
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Email sending timeout (10s)')), 10000);
+      });
+
+      const info = await Promise.race([emailPromise, timeoutPromise]);
+
       console.log(`📧 Email sent to ${to} (${info.messageId})`);
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('❌ sendEmail error:', error);
-      throw error;
+      // Don't throw - return error object instead to prevent blocking
+      return { success: false, message: error.message || 'Failed to send email' };
     }
   }
 
