@@ -58,16 +58,24 @@ router.get('/my-registrations', async (req, res) => {
     // Join with users table to get user details (full_name, email, phone, etc.)
     // ⚠️ FIX: attendance_tokens.registration_id references registrations.id, not event_registrations.id
     // So we need to join through registrations table
+    // ⚠️ FIX: Only select columns that exist in event_registrations table
     const [registrations] = await query(
-      `SELECT er.*, 
+      `SELECT er.id,
+              er.user_id,
+              er.event_id,
+              er.payment_method,
+              er.payment_amount,
+              er.payment_status,
+              er.status,
+              er.notes,
+              er.created_at,
+              er.updated_at,
               e.title as event_title, 
               e.event_date, 
               e.event_time,
               e.location, 
               e.price as registration_fee,
               e.is_free,
-              er.payment_amount,
-              er.payment_status,
               -- Get user info from users table
               u.full_name as full_name,
               u.email as email,
@@ -104,8 +112,12 @@ router.get('/my-registrations', async (req, res) => {
     return ApiResponse.success(res, result, 'Registrations retrieved successfully');
 
   } catch (error) {
-    console.error('Get registrations error:', error);
-    return ApiResponse.error(res, 'Failed to get registrations');
+    console.error('❌ Get registrations error:', error);
+    console.error('❌ Error message:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ SQL State:', error.sqlState);
+    console.error('❌ Error code:', error.code);
+    return ApiResponse.error(res, `Failed to get registrations: ${error.message}`);
   }
 });
 
