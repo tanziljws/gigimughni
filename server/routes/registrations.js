@@ -389,7 +389,13 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     const attendanceDeadlineFormatted = attendanceDeadline.toISOString().slice(0, 19).replace('T', ' ');
     console.log('📅 Attendance deadline:', attendanceDeadlineFormatted);
 
+    // ⚠️ IMPORTANT: Insert order matters!
+    // 1. Insert to registrations table FIRST (attendance_tokens references registrations.id)
+    // 2. Then insert to event_registrations table
+    // 3. Then create token using primaryRegistrationId
+
     // Save to primary registrations table (analytics & user profile)
+    // ⚠️ IMPORTANT: This must succeed because attendance_tokens references registrations.id
     let primaryRegistrationId = null;
     try {
       const [primaryInsert] = await query(
@@ -417,8 +423,10 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
       primaryRegistrationId = primaryInsert.insertId;
       console.log('✅ Registration record stored:', primaryRegistrationId);
     } catch (primaryError) {
-      console.warn('⚠️ Failed to insert into registrations table:', primaryError.message);
-      // Continue even if legacy table fails
+      console.error('❌ Failed to insert into registrations table:', primaryError);
+      // ⚠️ FIX: Don't continue if registrations insert fails - attendance_tokens needs this ID
+      // Throw error to prevent foreign key constraint violation
+      throw new Error(`Failed to create registration record: ${primaryError.message}`);
     }
 
     // Create event registration (main reference for attendance & admin screens)
@@ -448,6 +456,15 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
       console.log('✅ Event registration created:', eventRegistrationId);
     } catch (insertError) {
       console.error('❌ Failed to create event registration:', insertError);
+      // ⚠️ FIX: If event_registrations insert fails, rollback registrations insert
+      if (primaryRegistrationId) {
+        try {
+          await query('DELETE FROM registrations WHERE id = ?', [primaryRegistrationId]);
+          console.log('🔄 Rolled back registrations insert');
+        } catch (rollbackError) {
+          console.error('❌ Failed to rollback registrations:', rollbackError);
+        }
+      }
       throw insertError;
     }
 
@@ -456,9 +473,16 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     // ⚠️ FIX: Check both 'confirmed' and 'approved' status (free events use 'approved')
     if (registrationStatus === 'confirmed' || registrationStatus === 'approved') {
       // Generate attendance token
-      console.log('🔑 Generating token...');
+      // ⚠️ IMPORTANT: Use primaryRegistrationId (from registrations table) not eventRegistrationId
+      // because attendance_tokens.registration_id references registrations.id
+      if (!primaryRegistrationId) {
+        console.error('❌ Cannot create token: primaryRegistrationId is null');
+        throw new Error('Registration ID is required for token generation');
+      }
+      
+      console.log('🔑 Generating token with registration_id:', primaryRegistrationId);
       tokenData = await TokenService.createAttendanceToken(
-        eventRegistrationId,
+        primaryRegistrationId, // Use registrations.id, not event_registrations.id
         req.user.id,
         event_id
       );
