@@ -12,7 +12,10 @@ const {
 router.get('/my-events', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('📋 Fetching event history for user:', userId);
+    
     const history = await getUserEventHistory(userId);
+    console.log('✅ Event history retrieved:', history.length, 'events');
 
     res.json({
       success: true,
@@ -22,10 +25,15 @@ router.get('/my-events', authenticateToken, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error fetching user history:', error);
+    console.error('❌ Error fetching user history:', error);
+    console.error('   Error message:', error.message);
+    console.error('   Error stack:', error.stack);
+    console.error('   SQL State:', error.sqlState);
+    console.error('   Error code:', error.code);
+    
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch event history'
+      message: `Failed to fetch event history: ${error.message || 'Unknown error'}`
     });
   }
 });

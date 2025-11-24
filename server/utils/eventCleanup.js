@@ -283,6 +283,7 @@ const getUserEventHistory = async (userId) => {
   try {
     // ⚠️ FIX: Use event_registrations as primary source (same as other endpoints)
     // Join with events and certificates to get complete event history
+    // ⚠️ FIX: Only select columns that exist in certificates table
     const history = await query(`
       SELECT 
         e.id,
@@ -299,7 +300,7 @@ const getUserEventHistory = async (userId) => {
         er.payment_status,
         er.payment_amount,
         c.id as certificate_id,
-        c.certificate_code,
+        c.certificate_number as certificate_code,
         c.issued_at as certificate_issued_at
       FROM event_registrations er
       INNER JOIN events e ON er.event_id = e.id
@@ -313,6 +314,8 @@ const getUserEventHistory = async (userId) => {
     console.error('❌ Error getting user event history:', error);
     console.error('   Error message:', error.message);
     console.error('   SQL State:', error.sqlState);
+    console.error('   Error code:', error.code);
+    console.error('   Error stack:', error.stack);
     throw error;
   }
 };
