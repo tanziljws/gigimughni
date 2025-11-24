@@ -359,7 +359,8 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
 
     let tokenData = null;
 
-    if (registrationStatus === 'confirmed') {
+    // ⚠️ FIX: Check both 'confirmed' and 'approved' status (free events use 'approved')
+    if (registrationStatus === 'confirmed' || registrationStatus === 'approved') {
       // Generate attendance token
       console.log('🔑 Generating token...');
       tokenData = await TokenService.createAttendanceToken(
