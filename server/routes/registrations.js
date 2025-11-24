@@ -267,6 +267,25 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     const registrationStatus = isFreeEvent ? 'approved' : 'pending';
     const paymentStatus = isFreeEvent ? 'paid' : 'pending';
     const paymentAmount = parseFloat(event.price || 0);
+    
+    // ⚠️ FIX: Validate and truncate payment_method to max 50 characters (VARCHAR(50) limit)
+    // Allowed values: 'cash', 'midtrans', 'bank_transfer', 'credit_card', 'debit_card', etc.
+    let validPaymentMethod = 'cash'; // Default for free events
+    if (payment_method) {
+      const paymentMethodStr = String(payment_method).trim().toLowerCase();
+      // Truncate to 50 characters max
+      validPaymentMethod = paymentMethodStr.substring(0, 50);
+      
+      // For free events, always use 'cash'
+      if (isFreeEvent) {
+        validPaymentMethod = 'cash';
+      }
+    } else if (!isFreeEvent) {
+      // For paid events, default to 'midtrans' if not specified
+      validPaymentMethod = 'midtrans';
+    }
+    
+    console.log('💳 Payment method:', validPaymentMethod, '(original:', payment_method, ')');
 
     // Calculate attendance deadline (end of event day + 1 hour buffer)
     let attendanceDeadline;
@@ -387,7 +406,7 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
           registrantCity,
           registrantProvince,
           registrantInstitution,
-          payment_method,
+          validPaymentMethod,
           registrationStatus,
           paymentStatus,
           paymentAmount,
@@ -418,10 +437,10 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
         [
           req.user.id,
           event_id,
-          payment_method,
+          validPaymentMethod,
           paymentAmount,
           paymentStatus,
-          registrationStatus, // 'confirmed' for free events, 'pending' for paid
+          registrationStatus, // 'approved' for free events, 'pending' for paid
           notes || ''
         ]
       );
