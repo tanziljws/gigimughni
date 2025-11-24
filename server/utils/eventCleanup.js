@@ -281,6 +281,8 @@ const archiveEndedEvents = async () => {
  */
 const getUserEventHistory = async (userId) => {
   try {
+    // ⚠️ FIX: Use event_registrations as primary source (same as other endpoints)
+    // Join with events and certificates to get complete event history
     const history = await query(`
       SELECT 
         e.id,
@@ -291,22 +293,26 @@ const getUserEventHistory = async (userId) => {
         e.status,
         e.is_active,
         e.has_certificate,
-        r.id as registration_id,
-        r.created_at as registration_date,
-        r.status as registration_status,
+        er.id as registration_id,
+        er.created_at as registration_date,
+        er.status as registration_status,
+        er.payment_status,
+        er.payment_amount,
         c.id as certificate_id,
         c.certificate_code,
         c.issued_at as certificate_issued_at
-      FROM event_registrations r
-      INNER JOIN events e ON r.event_id = e.id
-      LEFT JOIN certificates c ON c.user_id = r.user_id AND c.event_id = e.id
-      WHERE r.user_id = ?
-      ORDER BY e.event_date DESC
+      FROM event_registrations er
+      INNER JOIN events e ON er.event_id = e.id
+      LEFT JOIN certificates c ON c.user_id = er.user_id AND c.event_id = e.id
+      WHERE er.user_id = ?
+      ORDER BY e.event_date DESC, er.created_at DESC
     `, [userId]);
 
     return history;
   } catch (error) {
-    console.error('Error getting user event history:', error);
+    console.error('❌ Error getting user event history:', error);
+    console.error('   Error message:', error.message);
+    console.error('   SQL State:', error.sqlState);
     throw error;
   }
 };
