@@ -734,5 +734,130 @@ router.post('/cleanup-unverified', async (req, res) => {
   }
 });
 
+// Test email endpoint - untuk testing email dari Railway
+router.post('/test-email', async (req, res) => {
+  try {
+    const { to = 'tanziljws@gmail.com' } = req.body;
+    
+    console.log('📧 Testing email sending to:', to);
+    console.log('📧 Brevo API Key configured:', !!process.env.BREVO_API_KEY);
+    console.log('📧 Brevo Sender Email:', process.env.BREVO_SENDER_EMAIL);
+    
+    const result = await emailService.sendEmail({
+      to: to,
+      subject: '🧪 Test Email dari Railway - Event Yukk',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Test Email - Event Yukk</title>
+          <style>
+            body { 
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+              margin: 0; 
+              padding: 20px; 
+              background-color: #f5f5f5; 
+              line-height: 1.6;
+            }
+            .container { 
+              max-width: 600px; 
+              margin: 0 auto; 
+              background: white; 
+              border-radius: 8px; 
+              overflow: hidden; 
+              box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            }
+            .header { 
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              padding: 30px; 
+              text-align: center; 
+              color: white; 
+            }
+            .header h1 { 
+              margin: 0; 
+              font-size: 24px; 
+              font-weight: 600; 
+            }
+            .content { 
+              padding: 30px; 
+              text-align: left; 
+            }
+            .success-box {
+              background: #d4edda;
+              border-left: 4px solid #28a745;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 4px;
+              color: #155724;
+            }
+            .info {
+              background: #e7f3ff;
+              border-left: 4px solid #2196F3;
+              padding: 15px;
+              margin: 20px 0;
+              border-radius: 4px;
+              color: #0d47a1;
+            }
+            .footer { 
+              background: #f8f9fa; 
+              padding: 20px; 
+              text-align: center; 
+              color: #6c757d; 
+              font-size: 12px;
+              border-top: 1px solid #e8eaed;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>✅ Test Email Berhasil!</h1>
+            </div>
+            
+            <div class="content">
+              <div class="success-box">
+                <strong>🎉 Email ini dikirim dari Railway hosting!</strong>
+              </div>
+              
+              <div class="info">
+                <strong>📋 Informasi:</strong><br>
+                • Email dikirim menggunakan Brevo API<br>
+                • Server: Railway Production<br>
+                • Timestamp: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}<br>
+                • Status: Email service berfungsi dengan baik
+              </div>
+              
+              <p>Jika Anda menerima email ini, berarti konfigurasi email Brevo di Railway sudah benar dan berfungsi!</p>
+            </div>
+            
+            <div class="footer">
+              <div><strong>Event Yukk Platform</strong></div>
+              <div>Email ini dikirim secara otomatis untuk testing.</div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `Test Email dari Railway - Event Yukk\n\nEmail ini dikirim dari Railway hosting menggunakan Brevo API.\n\nTimestamp: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}\n\nJika Anda menerima email ini, berarti konfigurasi email Brevo di Railway sudah benar dan berfungsi!`
+    });
+    
+    if (result.success) {
+      return ApiResponse.success(res, {
+        message: 'Email test berhasil dikirim!',
+        recipient: to,
+        messageId: result.messageId || null,
+        fallback: result.fallback || false
+      }, 'Email test berhasil dikirim');
+    } else {
+      return ApiResponse.error(res, result.message || 'Gagal mengirim email test');
+    }
+  } catch (error) {
+    console.error('❌ Test email error:', error);
+    return ApiResponse.error(res, `Error: ${error.message}`);
+  }
+});
+
 module.exports = router;
 

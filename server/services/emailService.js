@@ -1,38 +1,35 @@
-const nodemailer = require('nodemailer');
+const Brevo = require('@getbrevo/brevo');
 const { query } = require('../db');
 
 class EmailService {
   constructor() {
-    // Check if SMTP credentials are configured
-    this.isConfigured = process.env.SMTP_USER && process.env.SMTP_PASS && 
-                       process.env.SMTP_USER !== 'your-gmail@gmail.com' && 
-                       process.env.SMTP_PASS.trim() !== '';
-    
+    this.senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER;
+    this.senderName = process.env.BREVO_SENDER_NAME || process.env.SMTP_FROM_NAME || 'Event Yukk Platform';
+    this.apiKey = process.env.BREVO_API_KEY;
+
+    this.isConfigured = Boolean(this.apiKey && this.senderEmail);
+
     console.log('📧 EmailService Configuration:');
-    console.log(`   SMTP_HOST: ${process.env.SMTP_HOST}`);
-    console.log(`   SMTP_PORT: ${process.env.SMTP_PORT}`);
-    console.log(`   SMTP_USER: ${process.env.SMTP_USER}`);
-    console.log(`   SMTP_PASS: ${process.env.SMTP_PASS ? '***configured***' : 'NOT SET'}`);
-    console.log(`   Is Configured: ${this.isConfigured}`);
-    
+    console.log('   Provider : Brevo (Transactional Email API)');
+    console.log(`   Sender   : ${this.senderName} <${this.senderEmail}>`);
+    console.log(`   API Key  : ${this.apiKey ? '***configured***' : 'NOT SET'}`);
+    console.log(`   Is Ready : ${this.isConfigured}`);
+
     if (this.isConfigured) {
-      this.transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: process.env.SMTP_SECURE === 'true',
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        },
-        debug: false,
-        logger: false
-      });
-      
-      // Skip connection test on startup to prevent crashes
-      console.log('📧 SMTP transporter created (connection test skipped)');
+      this.emailApi = new Brevo.TransactionalEmailsApi();
+      if (
+        this.emailApi &&
+        this.emailApi.authentications &&
+        this.emailApi.authentications.apiKey
+      ) {
+        this.emailApi.authentications.apiKey.apiKey = this.apiKey;
+      } else if (this.emailApi && typeof this.emailApi.setApiKey === 'function') {
+        this.emailApi.setApiKey('apiKey', this.apiKey);
+      }
+      console.log('📧 Brevo transactional email client initialized');
     } else {
-      console.warn('❌ SMTP not configured. Email features will use fallback mode.');
-      this.transporter = null;
+      console.warn('❌ Brevo API key or sender email missing. Email features will log to console.');
+      this.emailApi = null;
     }
   }
 
@@ -42,8 +39,8 @@ class EmailService {
         throw new Error('Recipient email is required');
       }
 
-      if (!this.isConfigured || !this.transporter) {
-        console.warn('📨 SMTP not configured. Using fallback logging for email notification.');
+      if (!this.isConfigured || !this.emailApi) {
+        console.warn('📨 Brevo not configured. Using fallback logging for email notification.');
         console.log('----- EMAIL (FALLBACK) -----');
         console.log('To      :', to);
         console.log('Subject :', subject);
@@ -57,27 +54,29 @@ class EmailService {
         return { success: true, fallback: true };
       }
 
-      // 🔥 FIX: Add timeout to email sending (max 10 seconds)
-      const emailPromise = this.transporter.sendMail({
-        from: `"Event Yukk" <${process.env.SMTP_USER}>`,
-        to,
-        subject,
-        text,
-        html,
-      });
+      const recipients = Array.isArray(to)
+        ? to.map((recipient) => (typeof recipient === 'string' ? { email: recipient } : recipient))
+        : [{ email: to }];
 
-      // Set timeout for email sending (10 seconds max)
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Email sending timeout (10s)')), 10000);
-      });
+      const emailData = new Brevo.SendSmtpEmail();
+      emailData.sender = {
+        email: this.senderEmail,
+        name: this.senderName
+      };
+      emailData.to = recipients;
+      emailData.subject = subject;
+      if (html) {
+        emailData.htmlContent = html;
+      }
+      if (text) {
+        emailData.textContent = text;
+      }
 
-      const info = await Promise.race([emailPromise, timeoutPromise]);
-
-      console.log(`📧 Email sent to ${to} (${info.messageId})`);
-      return { success: true, messageId: info.messageId };
+      const response = await this.emailApi.sendTransacEmail(emailData);
+      console.log(`📧 Email sent via Brevo to ${Array.isArray(to) ? to.join(', ') : to} (${response?.messageId || 'no-id'})`);
+      return { success: true, messageId: response?.messageId || null };
     } catch (error) {
       console.error('❌ sendEmail error:', error);
-      // Don't throw - return error object instead to prevent blocking
       return { success: false, message: error.message || 'Failed to send email' };
     }
   }
