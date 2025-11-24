@@ -148,38 +148,26 @@ router.post('/register', validateUserRegistration, handleValidationErrors, async
       }
     }, 5 * 60 * 1000); // 5 minutes
 
-    // Send OTP email
-    console.log(`📧 Sending OTP email to ${finalEmail}...`);
-    const emailSent = await emailService.sendOTPEmail(finalEmail, otpCode, full_name);
+    // 🔥 FIX: Send email in background (non-blocking) to prevent timeout
+    // Return response immediately, email will be sent asynchronously
+    console.log(`📧 Queueing OTP email to ${finalEmail}...`);
     
-    // ⚠️ FIX: If email fails, still allow registration but activate account immediately
-    // This is for development/testing. In production, you might want to keep email verification.
-    if (!emailSent.success) {
-      console.error('❌ Failed to send OTP email:', emailSent.message);
-      console.warn('⚠️ Activating account automatically due to email service failure');
-      
-      // Activate account immediately if email fails
-      await query('UPDATE users SET is_active = TRUE WHERE id = ?', [userId]);
-      
-      // Generate token for auto-login
-      const token = generateToken(userId);
-      const [newUser] = await query(
-        'SELECT id, username, email, full_name, role, is_active FROM users WHERE id = ?',
-        [userId]
-      );
-      
-      return ApiResponse.created(res, {
-        userId,
-        email: finalEmail,
-        originalEmail: email,
-        user: sanitizeUser(newUser[0]),
-        token,
-        message: 'Registration successful! Account activated automatically (email service unavailable).'
-      }, 'Registration successful! Account activated automatically.');
-    }
-
-    console.log(`✅ OTP email sent successfully to ${finalEmail}`);
+    // Send email asynchronously (don't await)
+    emailService.sendOTPEmail(finalEmail, otpCode, full_name)
+      .then((emailSent) => {
+        if (emailSent.success) {
+          console.log(`✅ OTP email sent successfully to ${finalEmail}`);
+        } else {
+          console.error('❌ Failed to send OTP email:', emailSent.message);
+          console.warn('⚠️ Email sending failed, but user registration is complete');
+        }
+      })
+      .catch((error) => {
+        console.error('❌ Error sending OTP email:', error);
+        console.warn('⚠️ Email sending error, but user registration is complete');
+      });
     
+    // Return response immediately (don't wait for email)
     return ApiResponse.created(res, {
       userId,
       email: finalEmail,
