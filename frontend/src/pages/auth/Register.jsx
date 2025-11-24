@@ -207,28 +207,66 @@ const RegisterPage = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error details:', JSON.stringify(error.response?.data, null, 2));
       
       // ⚠️ FIX: Better error handling - show validation errors clearly
-      if (error.response?.data?.errors) {
-        // Backend validation errors
-        const validationErrors = error.response.data.errors;
-        const errorMessages = Array.isArray(validationErrors) 
-          ? validationErrors.map(err => `${err.field}: ${err.message}`).join('\n')
-          : Object.entries(validationErrors).map(([field, messages]) => {
-              const msg = Array.isArray(messages) ? messages.join(', ') : messages;
-              return `${field}: ${msg}`;
-            }).join('\n');
+      let errorMessage = 'Terjadi kesalahan saat registrasi. Silakan coba lagi.';
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
         
-        setMessage(`Validasi gagal:\n${errorMessages}`);
-      } else if (error.response?.data?.message) {
-        // Backend error message
-        setMessage(error.response.data.message);
+        // Check for validation errors
+        if (errorData.errors) {
+          const validationErrors = errorData.errors;
+          
+          if (Array.isArray(validationErrors) && validationErrors.length > 0) {
+            // Format: "Field: Message" for each error
+            const errorList = validationErrors.map(err => {
+              const fieldName = err.field || err.param || 'Field';
+              const fieldLabel = {
+                'username': 'Username',
+                'email': 'Email',
+                'password': 'Password',
+                'full_name': 'Nama Lengkap',
+                'phone': 'Nomor Telepon',
+                'address': 'Alamat',
+                'education': 'Pendidikan'
+              }[fieldName] || fieldName;
+              
+              return `• ${fieldLabel}: ${err.message || err.msg || 'Invalid'}`;
+            }).join('\n');
+            
+            errorMessage = `Validasi gagal:\n\n${errorList}`;
+          } else if (typeof validationErrors === 'object') {
+            // Object format errors
+            const errorList = Object.entries(validationErrors).map(([field, messages]) => {
+              const fieldLabel = {
+                'username': 'Username',
+                'email': 'Email',
+                'password': 'Password',
+                'full_name': 'Nama Lengkap',
+                'phone': 'Nomor Telepon',
+                'address': 'Alamat',
+                'education': 'Pendidikan'
+              }[field] || field;
+              
+              const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+              return `• ${fieldLabel}: ${msg}`;
+            }).join('\n');
+            
+            errorMessage = `Validasi gagal:\n\n${errorList}`;
+          }
+        } else if (errorData.message) {
+          // Backend error message
+          errorMessage = errorData.message;
+        }
       } else if (error.message) {
         // Generic error message
-        setMessage(error.message);
-      } else {
-        setMessage('Terjadi kesalahan saat registrasi. Silakan coba lagi.');
+        errorMessage = error.message;
       }
+      
+      setMessage(errorMessage);
       
       // ⚠️ FIX: Clear phone field if it contains invalid data
       if (formData.phone && !/^[0-9+\-\s()]{0,20}$/.test(formData.phone)) {
@@ -501,11 +539,11 @@ const RegisterPage = () => {
           </div>
           {message && (
             <div className={`p-4 rounded-lg mb-6 ${
-              message.includes('berhasil') 
+              message.includes('berhasil') || message.includes('success')
                 ? 'bg-green-50 text-green-800 border border-green-200' 
                 : 'bg-red-50 text-red-800 border border-red-200'
             }`}>
-              {message}
+              <div className="whitespace-pre-line font-poppins">{message}</div>
             </div>
           )}
           <form className="space-y-4" onSubmit={handleRegister}>
