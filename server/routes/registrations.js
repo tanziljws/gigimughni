@@ -164,6 +164,12 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
       return ApiResponse.badRequest(res, 'Invalid event date or time format');
     }
     
+    // ⚠️ FIX: Validate eventDateTime before using toISOString()
+    if (isNaN(eventDateTime.getTime())) {
+      console.error('❌ Invalid eventDateTime:', eventDateTime);
+      return ApiResponse.badRequest(res, 'Invalid event date or time format');
+    }
+    
     console.log('🕐 Current time:', now.toISOString());
     console.log('🕐 Event time:', eventDateTime.toISOString());
     console.log('🕐 Event date:', event.event_date);
@@ -232,66 +238,102 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     // Calculate attendance deadline (end of event day + 1 hour buffer)
     let attendanceDeadline;
     try {
-      const eventEndDateStr = (event.end_date || event.event_date) ? (event.end_date || event.event_date).toString().split('T')[0] : null;
-      const eventEndTimeStr = (event.end_time || '23:59:59').toString();
+      // Get event end date (prefer end_date, fallback to event_date)
+      let eventEndDateSource = event.end_date || event.event_date;
       
-      if (!eventEndDateStr) {
-        // Use event start date if end date is not available
-        const eventDateStr = event.event_date ? event.event_date.toString().split('T')[0] : null;
-        if (!eventDateStr) {
-          throw new Error('Event date is required');
+      // Handle different date formats (Date object, string, or null)
+      let eventEndDateStr = null;
+      if (eventEndDateSource) {
+        if (eventEndDateSource instanceof Date) {
+          eventEndDateStr = eventEndDateSource.toISOString().split('T')[0];
+        } else if (typeof eventEndDateSource === 'string') {
+          eventEndDateStr = eventEndDateSource.split('T')[0];
+        } else {
+          eventEndDateStr = String(eventEndDateSource).split('T')[0];
         }
-        
-        const [year, month, day] = eventDateStr.split('-');
-        const [hours, minutes, seconds] = eventEndTimeStr.split(':');
-        
-        attendanceDeadline = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day),
-          parseInt(hours || 23),
-          parseInt(minutes || 59),
-          parseInt(seconds || 59)
-        );
-      } else {
-        const [year, month, day] = eventEndDateStr.split('-');
-        const [hours, minutes, seconds] = eventEndTimeStr.split(':');
-        
-        attendanceDeadline = new Date(
-          parseInt(year),
-          parseInt(month) - 1,
-          parseInt(day),
-          parseInt(hours || 23),
-          parseInt(minutes || 59),
-          parseInt(seconds || 59)
-        );
       }
       
+      // Get event end time (prefer end_time, fallback to event_time or default)
+      let eventEndTimeStr = '23:59:59';
+      if (event.end_time) {
+        eventEndTimeStr = String(event.end_time);
+      } else if (event.event_time) {
+        eventEndTimeStr = String(event.event_time);
+      }
+      
+      // Validate date string format (YYYY-MM-DD)
+      if (!eventEndDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(eventEndDateStr)) {
+        throw new Error('Invalid event date format');
+      }
+      
+      // Parse date components
+      const [year, month, day] = eventEndDateStr.split('-').map(Number);
+      
+      // Parse time components (HH:MM:SS or HH:MM)
+      const timeParts = eventEndTimeStr.split(':');
+      const hours = parseInt(timeParts[0] || 23, 10);
+      const minutes = parseInt(timeParts[1] || 59, 10);
+      const seconds = parseInt(timeParts[2] || 59, 10);
+      
+      // Validate parsed values
+      if (isNaN(year) || isNaN(month) || isNaN(day) || 
+          isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+        throw new Error('Invalid date or time components');
+      }
+      
+      // Create date object
+      attendanceDeadline = new Date(year, month - 1, day, hours, minutes, seconds);
+      
+      // Validate the date is valid
       if (isNaN(attendanceDeadline.getTime())) {
-        throw new Error('Invalid date format');
+        throw new Error('Invalid date object created');
       }
       
       // Add 1 hour after event ends
       attendanceDeadline.setHours(attendanceDeadline.getHours() + 1);
       
-      // Validate the date is valid
+      // Validate again after modification
       if (isNaN(attendanceDeadline.getTime())) {
-        throw new Error('Invalid attendance deadline date');
+        throw new Error('Invalid attendance deadline after modification');
       }
+      
+      console.log('✅ Attendance deadline calculated:', attendanceDeadline.toISOString());
     } catch (dateError) {
       console.error('❌ Error calculating attendance deadline:', dateError);
+      console.error('   Event data:', {
+        event_date: event.event_date,
+        end_date: event.end_date,
+        event_time: event.event_time,
+        end_time: event.end_time
+      });
+      
       // Fallback: use event date + 1 day
-      const eventDateStr = event.event_date ? event.event_date.toString().split('T')[0] : null;
-      if (eventDateStr) {
-        const [year, month, day] = eventDateStr.split('-');
-        attendanceDeadline = new Date(parseInt(year), parseInt(month) - 1, parseInt(day) + 1);
-      } else {
+      try {
+        const eventDateStr = event.event_date ? 
+          (event.event_date instanceof Date ? event.event_date.toISOString().split('T')[0] : 
+           String(event.event_date).split('T')[0]) : null;
+        
+        if (eventDateStr && /^\d{4}-\d{2}-\d{2}$/.test(eventDateStr)) {
+          const [year, month, day] = eventDateStr.split('-').map(Number);
+          attendanceDeadline = new Date(year, month - 1, day + 1, 23, 59, 59);
+        } else {
+          attendanceDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day from now
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback also failed:', fallbackError);
         attendanceDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day from now
       }
-      console.warn('⚠️ Using fallback attendance deadline:', attendanceDeadline);
+      
+      console.warn('⚠️ Using fallback attendance deadline:', attendanceDeadline.toISOString());
     }
     
     // Format attendanceDeadline for MySQL (YYYY-MM-DD HH:mm:ss)
+    // ⚠️ FIX: Validate before calling toISOString()
+    if (isNaN(attendanceDeadline.getTime())) {
+      console.error('❌ Attendance deadline is still invalid, using default');
+      attendanceDeadline = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    }
+    
     const attendanceDeadlineFormatted = attendanceDeadline.toISOString().slice(0, 19).replace('T', ' ');
     console.log('📅 Attendance deadline:', attendanceDeadlineFormatted);
 
