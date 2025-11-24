@@ -281,9 +281,11 @@ const archiveEndedEvents = async () => {
  */
 const getUserEventHistory = async (userId) => {
   try {
+    console.log('📋 Getting event history for user:', userId);
+    
     // ⚠️ FIX: Use event_registrations as primary source (same as other endpoints)
     // Join with events and certificates to get complete event history
-    // ⚠️ FIX: Only select columns that exist in certificates table
+    // ⚠️ FIX: Use COALESCE and safe column selection to handle missing columns
     const history = await query(`
       SELECT 
         e.id,
@@ -293,15 +295,15 @@ const getUserEventHistory = async (userId) => {
         e.location,
         e.status,
         e.is_active,
-        e.has_certificate,
+        COALESCE(e.has_certificate, FALSE) as has_certificate,
         er.id as registration_id,
         er.created_at as registration_date,
         er.status as registration_status,
         er.payment_status,
         er.payment_amount,
         c.id as certificate_id,
-        c.certificate_number as certificate_code,
-        c.issued_at as certificate_issued_at
+        COALESCE(c.certificate_number, c.certificate_code, NULL) as certificate_code,
+        COALESCE(c.issued_at, c.generated_at, NULL) as certificate_issued_at
       FROM event_registrations er
       INNER JOIN events e ON er.event_id = e.id
       LEFT JOIN certificates c ON c.user_id = er.user_id AND c.event_id = e.id
@@ -309,13 +311,16 @@ const getUserEventHistory = async (userId) => {
       ORDER BY e.event_date DESC, er.created_at DESC
     `, [userId]);
 
+    console.log('✅ Event history retrieved:', history.length, 'events');
     return history;
   } catch (error) {
     console.error('❌ Error getting user event history:', error);
     console.error('   Error message:', error.message);
     console.error('   SQL State:', error.sqlState);
     console.error('   Error code:', error.code);
-    console.error('   Error stack:', error.stack);
+    if (error.stack) {
+      console.error('   Error stack:', error.stack.substring(0, 500));
+    }
     throw error;
   }
 };
