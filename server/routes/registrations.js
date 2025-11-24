@@ -136,32 +136,65 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     try {
       // Prefer event_date from request body, fallback to database
       const eventDateSource = event_date || event.event_date;
-      const eventDateStr = eventDateSource ? eventDateSource.toString().split('T')[0] : null;
-      const eventTimeStr = event.event_time ? event.event_time.toString() : '00:00:00';
       
-      if (!eventDateStr) {
-        return ApiResponse.badRequest(res, 'Event date is required');
+      // Handle different date formats
+      let eventDateStr = null;
+      if (eventDateSource) {
+        if (eventDateSource instanceof Date) {
+          eventDateStr = eventDateSource.toISOString().split('T')[0];
+        } else if (typeof eventDateSource === 'string') {
+          eventDateStr = eventDateSource.split('T')[0];
+        } else {
+          eventDateStr = String(eventDateSource).split('T')[0];
+        }
       }
       
-      // Parse date and time safely
-      const [year, month, day] = eventDateStr.split('-');
-      const [hours, minutes, seconds] = eventTimeStr.split(':');
+      // Validate date string format (YYYY-MM-DD)
+      if (!eventDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(eventDateStr)) {
+        return ApiResponse.badRequest(res, 'Event date is required and must be in YYYY-MM-DD format');
+      }
       
-      eventDateTime = new Date(
-        parseInt(year),
-        parseInt(month) - 1, // Month is 0-indexed
-        parseInt(day),
-        parseInt(hours || 0),
-        parseInt(minutes || 0),
-        parseInt(seconds || 0)
-      );
+      // Parse time safely
+      let eventTimeStr = '00:00:00';
+      if (event.event_time) {
+        eventTimeStr = String(event.event_time);
+      }
       
+      // Parse date components
+      const [year, month, day] = eventDateStr.split('-').map(Number);
+      
+      // Parse time components (HH:MM:SS or HH:MM)
+      const timeParts = eventTimeStr.split(':');
+      const hours = parseInt(timeParts[0] || 0, 10);
+      const minutes = parseInt(timeParts[1] || 0, 10);
+      const seconds = parseInt(timeParts[2] || 0, 10);
+      
+      // Validate parsed values
+      if (isNaN(year) || isNaN(month) || isNaN(day) || 
+          isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
+        throw new Error('Invalid date or time components');
+      }
+      
+      // Validate month and day ranges
+      if (month < 1 || month > 12 || day < 1 || day > 31) {
+        throw new Error('Invalid month or day value');
+      }
+      
+      // Create date object
+      eventDateTime = new Date(year, month - 1, day, hours, minutes, seconds);
+      
+      // Validate the date is valid
       if (isNaN(eventDateTime.getTime())) {
-        throw new Error('Invalid date format');
+        throw new Error('Invalid date object created');
       }
     } catch (dateError) {
       console.error('❌ Error parsing event date/time:', dateError);
-      return ApiResponse.badRequest(res, 'Invalid event date or time format');
+      console.error('   Event data:', {
+        event_date: event.event_date,
+        event_time: event.event_time,
+        event_date_from_body: event_date
+      });
+      return ApiResponse.badRequest(res, `Invalid event date or time format: ${dateError.message}`);
     }
     
     // ⚠️ FIX: Validate eventDateTime before using toISOString()
