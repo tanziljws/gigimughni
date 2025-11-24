@@ -285,7 +285,8 @@ const getUserEventHistory = async (userId) => {
     
     // ⚠️ FIX: Use event_registrations as primary source (same as other endpoints)
     // Join with events and certificates to get complete event history
-    // ⚠️ FIX: Use COALESCE and safe column selection to handle missing columns
+    // ⚠️ FIX: Simplify query - only select columns that definitely exist
+    // Use subquery for certificates to avoid column name conflicts
     const history = await query(`
       SELECT 
         e.id,
@@ -295,18 +296,17 @@ const getUserEventHistory = async (userId) => {
         e.location,
         e.status,
         e.is_active,
-        COALESCE(e.has_certificate, FALSE) as has_certificate,
+        COALESCE(e.has_certificate, 0) as has_certificate,
         er.id as registration_id,
         er.created_at as registration_date,
         er.status as registration_status,
         er.payment_status,
         er.payment_amount,
-        c.id as certificate_id,
-        COALESCE(c.certificate_number, c.certificate_code, NULL) as certificate_code,
-        COALESCE(c.issued_at, c.generated_at, NULL) as certificate_issued_at
+        (SELECT id FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_id,
+        (SELECT certificate_number FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_code,
+        (SELECT issued_at FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_issued_at
       FROM event_registrations er
       INNER JOIN events e ON er.event_id = e.id
-      LEFT JOIN certificates c ON c.user_id = er.user_id AND c.event_id = e.id
       WHERE er.user_id = ?
       ORDER BY e.event_date DESC, er.created_at DESC
     `, [userId]);
