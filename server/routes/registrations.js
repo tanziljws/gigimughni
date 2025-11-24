@@ -56,6 +56,8 @@ router.get('/my-registrations', async (req, res) => {
 
     // Get registrations with event info from event_registrations
     // Join with users table to get user details (full_name, email, phone, etc.)
+    // ⚠️ FIX: attendance_tokens.registration_id references registrations.id, not event_registrations.id
+    // So we need to join through registrations table
     const [registrations] = await query(
       `SELECT er.*, 
               e.title as event_title, 
@@ -74,14 +76,15 @@ router.get('/my-registrations', async (req, res) => {
               u.city as city,
               u.province as province,
               u.institution as institution,
-              -- Get attendance token
+              -- Get attendance token (join through registrations table)
               at.token as attendance_token,
               c.name as category_name
        FROM event_registrations er
        LEFT JOIN events e ON er.event_id = e.id
        LEFT JOIN users u ON er.user_id = u.id
        LEFT JOIN categories c ON e.category_id = c.id
-       LEFT JOIN attendance_tokens at ON at.user_id = er.user_id AND at.event_id = er.event_id
+       LEFT JOIN registrations r ON r.user_id = er.user_id AND r.event_id = er.event_id
+       LEFT JOIN attendance_tokens at ON at.registration_id = r.id AND at.user_id = er.user_id AND at.event_id = er.event_id
        ${whereClause}
        ORDER BY er.created_at DESC 
        LIMIT ${parseInt(limit)} OFFSET ${offset}`,
