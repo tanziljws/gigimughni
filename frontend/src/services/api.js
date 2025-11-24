@@ -11,7 +11,7 @@ export const BACKEND_BASE_URL = import.meta.env.VITE_API_BASE_URL
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // ⚠️ FIX: Increase timeout to 30s for registration (email sending might take time)
   headers: {
     'Content-Type': 'application/json',
   },

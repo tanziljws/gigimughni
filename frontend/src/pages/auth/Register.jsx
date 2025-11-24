@@ -602,7 +602,7 @@ const RegisterPage = () => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   maxLength={20}
-                  pattern="[0-9+\-\s()]{8,20}"
+                  pattern="[0-9 +()\-]{8,20}"
                   className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all font-poppins"
                   placeholder="Phone (Optional, e.g: 081234567890)"
                 />
