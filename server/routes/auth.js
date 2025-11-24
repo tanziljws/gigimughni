@@ -106,9 +106,19 @@ router.post('/register', validateUserRegistration, handleValidationErrors, async
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Create user (INACTIVE until email verification)
+    // ⚠️ FIX: Handle optional fields properly - use null if empty/undefined
     const [result] = await query(
       'INSERT INTO users (username, email, password, full_name, phone, address, education, role, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, FALSE)',
-      [username, finalEmail, hashedPassword, full_name, phone, address || null, education || null, 'user']
+      [
+        username, 
+        finalEmail, 
+        hashedPassword, 
+        full_name, 
+        phone && phone.trim() ? phone.trim() : null, 
+        address && address.trim() ? address.trim() : null, 
+        education && education.trim() ? education.trim() : null, 
+        'user'
+      ]
     );
 
     const userId = result.insertId;
