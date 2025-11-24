@@ -108,10 +108,22 @@ const RegisterPage = () => {
   }, [step]);
 
   const handleInputChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    
+    // ⚠️ FIX: Sanitize phone input - only allow numbers, +, -, spaces, parentheses
+    if (name === 'phone') {
+      // Remove all characters except numbers, +, -, spaces, and parentheses
+      const sanitized = value.replace(/[^0-9+\-\s()]/g, '');
+      setFormData({
+        ...formData,
+        [name]: sanitized
+      });
+    } else {
+      setFormData({
+        ...formData,
+        [name]: value
+      });
+    }
   };
 
   const handleRegister = async (e) => {
@@ -145,14 +157,17 @@ const RegisterPage = () => {
     setMessage('');
 
     try {
+      // ⚠️ FIX: Sanitize phone before sending - remove all non-numeric characters except +, -, spaces, parentheses
+      const sanitizedPhone = formData.phone ? formData.phone.replace(/[^0-9+\-\s()]/g, '') : '';
+      
       const response = await authAPI.register({
         username: formData.username,
         email: formData.email,
         password: formData.password,
         full_name: formData.full_name,
-        phone: formData.phone,
-        address: formData.address,
-        education: formData.education
+        phone: sanitizedPhone || undefined, // Send undefined if empty (optional field)
+        address: formData.address || undefined,
+        education: formData.education || undefined
       });
       
       if (response && response.success) {
@@ -181,7 +196,36 @@ const RegisterPage = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
-      setMessage(error.message || 'Terjadi kesalahan saat registrasi');
+      
+      // ⚠️ FIX: Better error handling - show validation errors clearly
+      if (error.response?.data?.errors) {
+        // Backend validation errors
+        const validationErrors = error.response.data.errors;
+        const errorMessages = Array.isArray(validationErrors) 
+          ? validationErrors.map(err => `${err.field}: ${err.message}`).join('\n')
+          : Object.entries(validationErrors).map(([field, messages]) => {
+              const msg = Array.isArray(messages) ? messages.join(', ') : messages;
+              return `${field}: ${msg}`;
+            }).join('\n');
+        
+        setMessage(`Validasi gagal:\n${errorMessages}`);
+      } else if (error.response?.data?.message) {
+        // Backend error message
+        setMessage(error.response.data.message);
+      } else if (error.message) {
+        // Generic error message
+        setMessage(error.message);
+      } else {
+        setMessage('Terjadi kesalahan saat registrasi. Silakan coba lagi.');
+      }
+      
+      // ⚠️ FIX: Clear phone field if it contains invalid data
+      if (formData.phone && !/^[0-9+\-\s()]{0,20}$/.test(formData.phone)) {
+        setFormData(prev => ({
+          ...prev,
+          phone: ''
+        }));
+      }
     } finally {
       setLoading(false);
     }
@@ -508,8 +552,10 @@ const RegisterPage = () => {
                   type="tel"
                   value={formData.phone}
                   onChange={handleInputChange}
+                  maxLength={20}
+                  pattern="[0-9+\-\s()]{8,20}"
                   className="w-full pl-12 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition-all font-poppins"
-                  placeholder="Phone (Optional)"
+                  placeholder="Phone (Optional, e.g: 081234567890)"
                 />
               </div>
             </div>
