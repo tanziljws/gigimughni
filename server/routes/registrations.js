@@ -47,13 +47,15 @@ router.get('/my-registrations', async (req, res) => {
       params.push(status);
     }
 
-    // Get total count
+    // ⚠️ FIX: Use event_registrations as primary source (same as check duplicate)
+    // Get total count from event_registrations
     const [countResult] = await query(
-      `SELECT COUNT(*) as total FROM registrations er ${whereClause}`,
+      `SELECT COUNT(*) as total FROM event_registrations er ${whereClause}`,
       params
     );
 
-    // Get registrations with event info
+    // Get registrations with event info from event_registrations
+    // Join with users table to get user details (full_name, email, phone, etc.)
     const [registrations] = await query(
       `SELECT er.*, 
               e.title as event_title, 
@@ -61,12 +63,23 @@ router.get('/my-registrations', async (req, res) => {
               e.event_time,
               e.location, 
               e.price as registration_fee,
+              e.is_free,
               er.payment_amount,
               er.payment_status,
+              -- Get user info from users table
+              u.full_name as full_name,
+              u.email as email,
+              u.phone as phone,
+              u.address as address,
+              u.city as city,
+              u.province as province,
+              u.institution as institution,
+              -- Get attendance token
               at.token as attendance_token,
               c.name as category_name
-       FROM registrations er
+       FROM event_registrations er
        LEFT JOIN events e ON er.event_id = e.id
+       LEFT JOIN users u ON er.user_id = u.id
        LEFT JOIN categories c ON e.category_id = c.id
        LEFT JOIN attendance_tokens at ON at.user_id = er.user_id AND at.event_id = er.event_id
        ${whereClause}
