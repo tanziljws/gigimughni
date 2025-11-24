@@ -160,15 +160,26 @@ const RegisterPage = () => {
       // ⚠️ FIX: Sanitize phone before sending - remove all non-numeric characters except +, -, spaces, parentheses
       const sanitizedPhone = formData.phone ? formData.phone.replace(/[^0-9+\-\s()]/g, '') : '';
       
-      const response = await authAPI.register({
+      // ⚠️ FIX: Build request payload - only include non-empty optional fields
+      const registerPayload = {
         username: formData.username,
         email: formData.email,
         password: formData.password,
-        full_name: formData.full_name,
-        phone: sanitizedPhone || undefined, // Send undefined if empty (optional field)
-        address: formData.address || undefined,
-        education: formData.education || undefined
-      });
+        full_name: formData.full_name
+      };
+      
+      // Add optional fields only if they have values
+      if (sanitizedPhone && sanitizedPhone.trim()) {
+        registerPayload.phone = sanitizedPhone.trim();
+      }
+      if (formData.address && formData.address.trim()) {
+        registerPayload.address = formData.address.trim();
+      }
+      if (formData.education && formData.education.trim()) {
+        registerPayload.education = formData.education.trim();
+      }
+      
+      const response = await authAPI.register(registerPayload);
       
       if (response && response.success) {
         // Check if it's fallback mode (SMTP not configured)
