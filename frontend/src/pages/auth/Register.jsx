@@ -30,6 +30,7 @@ const RegisterPage = () => {
   const { login } = useAuth();
   const timerRef = useRef(null);
   const cleanupCalled = useRef(false);
+  const isSubmittingRef = useRef(false); // 🔥 FIX: Prevent double submit
 
   // Simple fade animation
   const pageVariants = {
@@ -129,6 +130,12 @@ const RegisterPage = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     
+    // 🔥 FIX: Prevent double submit
+    if (isSubmittingRef.current || loading) {
+      console.log('⚠️ Registration already in progress, ignoring duplicate submit');
+      return;
+    }
+    
     if (!formData.username || !formData.email || !formData.password || !formData.full_name) {
       setMessage('Semua field wajib diisi');
       return;
@@ -153,6 +160,8 @@ const RegisterPage = () => {
       return;
     }
 
+    // 🔥 FIX: Set submitting flag before starting
+    isSubmittingRef.current = true;
     setLoading(true);
     setMessage('');
 
@@ -214,10 +223,11 @@ const RegisterPage = () => {
       let errorMessage = 'Terjadi kesalahan saat registrasi. Silakan coba lagi.';
       
       // 🔥 FIX: Handle timeout error - backend might have succeeded
-      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout') || error.message?.includes('exceeded')) {
         errorMessage = 'Registrasi sedang diproses. Silakan tunggu beberapa saat, lalu coba login dengan akun Anda.\n\nJika masih belum bisa login, silakan coba registrasi lagi.';
         setMessage(errorMessage);
         setLoading(false);
+        isSubmittingRef.current = false; // 🔥 FIX: Reset submitting flag
         return; // Don't show generic error, just suggest to try login
       }
       
@@ -231,6 +241,7 @@ const RegisterPage = () => {
         }
         setMessage(errorMessage);
         setLoading(false);
+        isSubmittingRef.current = false; // 🔥 FIX: Reset submitting flag
         return;
       }
       
@@ -298,6 +309,7 @@ const RegisterPage = () => {
       }
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false; // 🔥 FIX: Always reset submitting flag
     }
   };
 
