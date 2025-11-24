@@ -76,14 +76,15 @@ router.get('/my-registrations', async (req, res) => {
               e.location, 
               e.price as registration_fee,
               e.is_free,
-              -- Get user info from users table
+              -- Get user info from users table (only columns that exist)
               u.full_name as full_name,
               u.email as email,
               u.phone as phone,
               u.address as address,
-              u.city as city,
-              u.province as province,
-              u.institution as institution,
+              -- Get registrant info from registrations table (city, province, institution)
+              r.city as city,
+              r.province as province,
+              r.institution as institution,
               -- Get attendance token (join through registrations table)
               at.token as attendance_token,
               c.name as category_name
