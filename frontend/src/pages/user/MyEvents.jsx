@@ -315,30 +315,40 @@ const MyEvents = () => {
                       </div>
                     )}
                     
-                    {/* Attendance Token */}
-                    {registration.attendance_token && (
+                    {/* Attendance Token - Always show if status is approved/confirmed */}
+                    {(registration.attendance_token || (registration.status === 'approved' || registration.status === 'confirmed')) && (
                       <div className="pt-3 border-t border-gray-200">
-                        <p className="text-gray-600 text-xs mb-1">Token Daftar Hadir</p>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
-                            <p className="font-mono text-lg font-bold text-purple-800 tracking-wider text-center">
-                              {registration.attendance_token}
+                        <p className="text-gray-600 text-xs mb-2 font-semibold">🔑 Token Daftar Hadir</p>
+                        {registration.attendance_token ? (
+                          <>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex-1 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300 rounded-lg px-4 py-3">
+                                <p className="font-mono text-2xl font-bold text-purple-900 tracking-widest text-center">
+                                  {registration.attendance_token}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(registration.attendance_token);
+                                  alert('✅ Token berhasil disalin ke clipboard!');
+                                }}
+                                className="px-4 py-3 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors shadow-md"
+                                title="Salin token"
+                              >
+                                📋 Salin
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-1 bg-blue-50 border border-blue-200 rounded px-2 py-1">
+                              💡 Gunakan token ini untuk daftar hadir di lokasi event
+                            </p>
+                          </>
+                        ) : (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+                            <p className="text-xs text-yellow-800">
+                              ⏳ Token akan dikirim ke email Anda setelah pembayaran dikonfirmasi
                             </p>
                           </div>
-                          <button
-                            onClick={() => {
-                              navigator.clipboard.writeText(registration.attendance_token);
-                              alert('Token berhasil disalin!');
-                            }}
-                            className="px-3 py-2 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
-                            title="Salin token"
-                          >
-                            📋
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Gunakan token ini untuk daftar hadir di lokasi event
-                        </p>
+                        )}
                       </div>
                     )}
                   </div>
