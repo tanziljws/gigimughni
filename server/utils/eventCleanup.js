@@ -320,27 +320,52 @@ const getUserEventHistory = async (userId) => {
     console.log('✅ Event history retrieved:', history.length, 'events');
     
     // ⚠️ FIX: Check if tokens actually exist in database for each registration
-    // First, verify if token exists in database even if query didn't return it
+    // Query directly from attendance_tokens table using event_registrations.id to find registrations.id
     for (const event of history) {
-      // Check if token exists in database directly
-      if (event.primary_registration_id && !event.attendance_token) {
+      // If token is null, check database directly
+      if (!event.attendance_token) {
         try {
-          const [existingTokens] = await query(
-            `SELECT token FROM attendance_tokens 
-             WHERE registration_id = ? AND user_id = ? AND event_id = ? 
-             ORDER BY created_at DESC LIMIT 1`,
-            [event.primary_registration_id, userId, event.id]
-          );
+          // First, find registration_id from registrations table
+          let registrationId = event.primary_registration_id;
           
-          if (existingTokens && existingTokens.length > 0) {
-            event.attendance_token = existingTokens[0].token;
-            console.log(`✅ Found existing token in database for event ${event.id}: ${existingTokens[0].token}`);
+          // If primary_registration_id is null, try to find it
+          if (!registrationId) {
+            const [regRecords] = await query(
+              `SELECT id FROM registrations WHERE user_id = ? AND event_id = ? LIMIT 1`,
+              [userId, event.id]
+            );
+            if (regRecords && regRecords.length > 0) {
+              registrationId = regRecords[0].id;
+              event.primary_registration_id = registrationId;
+              console.log(`✅ Found registration_id in database: ${registrationId}`);
+            }
+          }
+          
+          // Now check for token using registration_id, user_id, and event_id
+          if (registrationId) {
+            const [existingTokens] = await query(
+              `SELECT token FROM attendance_tokens 
+               WHERE registration_id = ? AND user_id = ? AND event_id = ? 
+               ORDER BY created_at DESC LIMIT 1`,
+              [registrationId, userId, event.id]
+            );
+            
+            if (existingTokens && existingTokens.length > 0) {
+              event.attendance_token = existingTokens[0].token;
+              console.log(`✅ Found existing token in database for event ${event.id}: ${existingTokens[0].token}`);
+            } else {
+              console.log(`⚠️ No token found in database for event ${event.id}, registration_id ${registrationId}`);
+              console.log(`   Checking with: user_id=${userId}, event_id=${event.id}, registration_id=${registrationId}`);
+            }
           } else {
-            console.log(`⚠️ No token found in database for event ${event.id}, registration ${event.primary_registration_id}`);
+            console.log(`⚠️ No registration_id found for event ${event.id}, cannot check token`);
           }
         } catch (tokenCheckError) {
           console.error(`❌ Error checking token in database:`, tokenCheckError);
+          console.error(`   Error details:`, tokenCheckError.message);
         }
+      } else {
+        console.log(`✅ Token already exists for event ${event.id}: ${event.attendance_token.substring(0, 3)}...`);
       }
       
       console.log(`🔍 Checking event ${event.id}:`, {
