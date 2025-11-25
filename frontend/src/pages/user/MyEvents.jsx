@@ -51,41 +51,51 @@ const MyEvents = () => {
         console.log('📋 Events found:', events.length);
         if (events.length > 0) {
           console.log('📋 First event raw data:', JSON.stringify(events[0], null, 2));
-          console.log('📋 First event keys:', Object.keys(events[0]));
+          console.log('📋 First event type:', Array.isArray(events[0]) ? 'array' : typeof events[0]);
+          console.log('📋 First event keys:', Array.isArray(events[0]) ? 'is array' : Object.keys(events[0] || {}));
         }
         
-        // Transform to match registrations format
+        // ⚠️ FIX: Transform to match registrations format
+        // Backend returns array of event objects, so we map directly
         const formattedRegistrations = events.map((event, index) => {
-          // ⚠️ FIX: Log all available keys to debug
-          if (index === 0) {
-            console.log('📋 Processing first event - all keys:', Object.keys(event || {}));
-            console.log('📋 Processing first event - full data:', JSON.stringify(event, null, 2));
-          }
+          // ⚠️ FIX: Handle case where event might be nested in array (shouldn't happen, but just in case)
+          const eventData = Array.isArray(event) ? event[0] : event;
           
-          // ⚠️ FIX: Handle case where event might be an object with nested structure
-          // Also handle case where event might be null/undefined
-          if (!event || typeof event !== 'object') {
-            console.error('❌ Invalid event data:', event);
+          // ⚠️ FIX: Validate event data exists and is an object
+          if (!eventData || typeof eventData !== 'object' || Array.isArray(eventData)) {
+            console.error('❌ Invalid event data at index', index, ':', eventData);
             return null;
           }
           
-          const eventData = event;
+          if (index === 0) {
+            console.log('📋 Processing first event - keys:', Object.keys(eventData));
+            console.log('📋 Processing first event - data:', {
+              id: eventData.id,
+              registration_id: eventData.registration_id,
+              title: eventData.title,
+              event_date: eventData.event_date,
+              location: eventData.location,
+              registration_status: eventData.registration_status
+            });
+          }
           
+          // ⚠️ FIX: Map directly from backend response structure
           const formatted = {
-            id: eventData.registration_id || eventData.id || null,
-            // ⚠️ FIX: Use event.id (from events table) not registration_id for event_id
-            event_id: eventData.id || null, // This is the event ID from events table
-            event_title: eventData.title || 'Event tanpa judul',
+            id: eventData.registration_id || null,
+            // ⚠️ FIX: event_id is from events table (eventData.id)
+            event_id: eventData.id || null,
+            event_title: eventData.title || null,
             event_date: eventData.event_date || null,
-            location: eventData.location || 'Lokasi tidak tersedia',
+            location: eventData.location || null,
             status: eventData.registration_status || eventData.status || 'pending',
             created_at: eventData.registration_date || eventData.created_at || new Date().toISOString(),
             is_archived: eventData.status === 'archived' || eventData.is_active === false || eventData.is_active === 0,
-            has_certificate: eventData.has_certificate || false,
+            has_certificate: Boolean(eventData.has_certificate),
             certificate_id: eventData.certificate_id || null,
             certificate_code: eventData.certificate_code || null,
-            // ⚠️ FIX: attendance_token is now included in history/my-events response
-            attendance_token: eventData.attendance_token || null
+            attendance_token: eventData.attendance_token || null,
+            payment_status: eventData.payment_status || null,
+            payment_amount: eventData.payment_amount || null
           };
           
           if (index === 0) {
@@ -93,7 +103,7 @@ const MyEvents = () => {
           }
           
           return formatted;
-        }).filter(reg => reg !== null); // Remove null entries
+        }).filter(reg => reg !== null && reg.event_id !== null); // Remove null entries and events without ID
         
         console.log('📋 Formatted registrations:', formattedRegistrations);
         setRegistrations(formattedRegistrations);
