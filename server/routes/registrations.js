@@ -533,40 +533,79 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
 
     // ⚠️ FIX: Check both 'confirmed' and 'approved' status
     // event_registrations uses 'approved', registrations uses 'confirmed'
+    console.log('🔍 Token generation check:', {
+      eventRegistrationStatus,
+      registrationStatus,
+      isFreeEvent,
+      primaryRegistrationId,
+      userId: req.user.id,
+      eventId: event_id
+    });
+
     if (eventRegistrationStatus === 'approved' || registrationStatus === 'confirmed') {
       // Generate attendance token
       // ⚠️ IMPORTANT: Use primaryRegistrationId (from registrations table) not eventRegistrationId
       // because attendance_tokens.registration_id references registrations.id
       if (!primaryRegistrationId) {
         console.error('❌ Cannot create token: primaryRegistrationId is null');
-        throw new Error('Registration ID is required for token generation');
-      }
-      
-      console.log('🔑 Generating token with registration_id:', primaryRegistrationId);
-      tokenData = await TokenService.createAttendanceToken(
-        primaryRegistrationId, // Use registrations.id, not event_registrations.id
-        req.user.id,
-        event_id
-      );
+        console.error('   Registration details:', {
+          eventRegistrationId,
+          userId: req.user.id,
+          eventId: event_id
+        });
+        // Don't throw error, just log - registration can still succeed
+        console.error('⚠️ Token generation skipped due to missing primaryRegistrationId');
+      } else {
+        try {
+          console.log('🔑 Generating token with registration_id:', primaryRegistrationId);
+          console.log('   Parameters:', {
+            registrationId: primaryRegistrationId,
+            userId: req.user.id,
+            eventId: event_id
+          });
+          
+          tokenData = await TokenService.createAttendanceToken(
+            primaryRegistrationId, // Use registrations.id, not event_registrations.id
+            req.user.id,
+            event_id
+          );
 
-      console.log('✅ Token generated:', tokenData.token);
+          console.log('✅ Token generated successfully:', {
+            tokenId: tokenData.id,
+            token: tokenData.token,
+            expiresAt: tokenData.expiresAt
+          });
 
-      // Send token via email
-      try {
-        console.log('📧 Sending token email...');
-        await TokenService.sendTokenEmail(
-          registrantEmail || req.user.email,
-          registrantName || req.user.full_name,
-          event.title,
-          tokenData.token
-        );
-        console.log('✅ Token email sent');
-      } catch (emailError) {
-        console.error('❌ Failed to send token email:', emailError);
-        // Don't fail registration if email fails
+          // Send token via email
+          try {
+            console.log('📧 Sending token email...');
+            await TokenService.sendTokenEmail(
+              registrantEmail || req.user.email,
+              registrantName || req.user.full_name,
+              event.title,
+              tokenData.token
+            );
+            console.log('✅ Token email sent successfully');
+          } catch (emailError) {
+            console.error('❌ Failed to send token email:', emailError);
+            console.error('   Email error details:', emailError.message);
+            // Don't fail registration if email fails - token is already created
+          }
+        } catch (tokenError) {
+          console.error('❌ Failed to generate token:', tokenError);
+          console.error('   Token error details:', tokenError.message);
+          console.error('   Token error stack:', tokenError.stack);
+          // Don't fail registration if token generation fails - registration is still valid
+          // Token can be generated later via auto-generation logic
+        }
       }
     } else {
       console.log('ℹ️ Registration pending payment - token will be generated after confirmation');
+      console.log('   Status details:', {
+        eventRegistrationStatus,
+        registrationStatus,
+        paymentStatus
+      });
     }
 
     // Get created registration
