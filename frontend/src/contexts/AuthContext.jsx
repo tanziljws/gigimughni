@@ -17,13 +17,43 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in from localStorage
-    const checkAuthStatus = () => {
+    const checkAuthStatus = async () => {
       try {
         const token = localStorage.getItem('token');
         const userData = localStorage.getItem('user');
         
         if (token && userData) {
-          setUser(JSON.parse(userData));
+          const parsedUser = JSON.parse(userData);
+          
+          // ⚠️ FIX: Validate token with backend on refresh
+          // Only validate if not admin (admin sessions are longer)
+          if (parsedUser.role !== 'admin') {
+            try {
+              // Quick validation - check if token is still valid
+              const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/profile`, {
+                method: 'GET',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              if (response.status === 401) {
+                // Token invalid - clear and logout
+                console.log('Token invalid on refresh - logging out');
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                setIsLoading(false);
+                return;
+              }
+            } catch (error) {
+              console.error('Error validating token:', error);
+              // If validation fails, still allow user to stay logged in
+              // (network error shouldn't logout user)
+            }
+          }
+          
+          setUser(parsedUser);
           setLastActivity(Date.now());
         }
       } catch (error) {
@@ -48,7 +78,9 @@ export const AuthProvider = ({ children }) => {
       return;
     }
 
-    const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+    // ⚠️ FIX: Increase session timeout to 24 hours (same as JWT expiration)
+    // JWT token expires in 24h, so session should match
+    const SESSION_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     
     const checkSessionTimeout = () => {
       const now = Date.now();
