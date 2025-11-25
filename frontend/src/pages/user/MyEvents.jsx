@@ -50,28 +50,43 @@ const MyEvents = () => {
           events = [];
         }
         
-        console.log('📋 Events found:', events.length);
+        console.log('📋 Events found (before flatten):', events.length);
+        console.log('📋 First event before flatten:', events[0]);
+        console.log('📋 First event is array?', Array.isArray(events[0]));
+        
+        // ⚠️ FIX: Aggressively flatten nested arrays
+        // Handle case where events is [[{...}]] instead of [{...}]
+        if (events.length > 0 && Array.isArray(events[0])) {
+          console.log('⚠️ Events contain nested arrays, flattening deeply...');
+          // Flatten until we get objects, not arrays
+          while (events.length > 0 && Array.isArray(events[0])) {
+            events = events.flat();
+            console.log('📋 After flatten, events length:', events.length);
+            console.log('📋 First event after flatten:', events[0]);
+            console.log('📋 First event is still array?', Array.isArray(events[0]));
+          }
+        }
+        
+        console.log('📋 Final events count:', events.length);
         if (events.length > 0) {
           const firstEvent = events[0];
-          console.log('📋 First event type:', Array.isArray(firstEvent) ? 'array' : typeof firstEvent);
-          console.log('📋 First event is array?', Array.isArray(firstEvent));
-          console.log('📋 First event raw:', firstEvent);
-          
-          // ⚠️ FIX: If first event is an array, flatten it
-          if (Array.isArray(firstEvent) && firstEvent.length > 0) {
-            console.log('⚠️ First event is nested array, flattening...');
-            events = events.flat();
-          }
+          console.log('📋 Final first event type:', typeof firstEvent);
+          console.log('📋 Final first event keys:', Object.keys(firstEvent || {}));
+          console.log('📋 Final first event sample:', {
+            id: firstEvent?.id,
+            title: firstEvent?.title,
+            location: firstEvent?.location
+          });
         }
         
         // ⚠️ FIX: Transform to match registrations format
         // Backend returns array of event objects, map directly
         const formattedRegistrations = events.map((event, index) => {
-          // ⚠️ FIX: event should be an object, not an array
-          // If it's still an array, take first element
+          // ⚠️ FIX: event should be an object at this point
+          // If it's still an array (shouldn't happen), take first element
           let eventData = event;
           if (Array.isArray(event)) {
-            console.warn('⚠️ Event at index', index, 'is still an array, taking first element');
+            console.warn('⚠️ Event at index', index, 'is still an array after flatten, taking first element');
             eventData = event[0];
           }
           
@@ -94,7 +109,7 @@ const MyEvents = () => {
           }
           
           // ⚠️ FIX: Map directly from backend response structure - NO FALLBACK VALUES
-          // Only use null if data is truly missing
+          // Use nullish coalescing (??) to preserve falsy values like 0, false, ''
           const formatted = {
             id: eventData.registration_id ?? null,
             event_id: eventData.id ?? null, // This is the event ID from events table
