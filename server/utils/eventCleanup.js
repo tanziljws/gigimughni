@@ -360,62 +360,81 @@ const getUserEventHistory = async (userId) => {
       // 2. Payment is paid (or event is free) AND
       // 3. Token is missing AND
       // 4. We have primary_registration_id
-      const paymentAmount = parseFloat(event.payment_amount) || 0;
-      const isPaid = event.payment_status === 'paid' || paymentAmount === 0;
-      const isApproved = event.registration_status === 'approved' || event.registration_status === 'confirmed';
-      const shouldHaveToken = isApproved 
-                              && isPaid
-                              && !event.attendance_token 
-                              && event.primary_registration_id;
-      
-      console.log(`🔍 Token check for event ${event.id}:`, {
-        isApproved,
-        isPaid,
-        payment_status: event.payment_status,
-        payment_amount: event.payment_amount,
-        parsed_amount: paymentAmount,
-        has_token: !!event.attendance_token,
-        has_registration_id: !!event.primary_registration_id,
-        shouldHaveToken
-      });
-      
-      if (shouldHaveToken) {
-        console.log(`⚠️ Missing token for event ${event.id} (status: ${event.registration_status}, payment: ${event.payment_status}), registration ${event.primary_registration_id}. Generating...`);
-        try {
-          const tokenData = await TokenService.createAttendanceToken(
-            event.primary_registration_id,
-            userId,
-            event.id
+      // ⚠️ FIX: Generate token if missing and conditions are met
+      // Check conditions after trying to get token from database
+      if (!event.attendance_token) {
+        const paymentAmount = parseFloat(event.payment_amount) || 0;
+        const isPaid = event.payment_status === 'paid' || paymentAmount === 0;
+        const isApproved = event.registration_status === 'approved' || event.registration_status === 'confirmed';
+        
+        // Try to find registration_id if not available
+        let registrationId = event.primary_registration_id;
+        if (!registrationId) {
+          const [regRecords] = await query(
+            `SELECT id FROM registrations WHERE user_id = ? AND event_id = ? LIMIT 1`,
+            [userId, event.id]
           );
-          event.attendance_token = tokenData.token;
-          console.log(`✅ Token generated retroactively: ${tokenData.token}`);
-          
-          // Also send email notification
-          try {
-            const [userData] = await query('SELECT email, full_name FROM users WHERE id = ?', [userId]);
-            if (userData && userData.length > 0) {
-              await TokenService.sendTokenEmail(
-                userData[0].email,
-                userData[0].full_name,
-                event.title,
-                tokenData.token
-              );
-              console.log(`✅ Token email sent to ${userData[0].email}`);
-            }
-          } catch (emailError) {
-            console.error('❌ Failed to send token email:', emailError);
-            // Don't fail if email fails
+          if (regRecords && regRecords.length > 0) {
+            registrationId = regRecords[0].id;
+            event.primary_registration_id = registrationId;
+            console.log(`✅ Found registration_id: ${registrationId}`);
           }
-        } catch (tokenError) {
-          console.error(`❌ Failed to generate token retroactively:`, tokenError);
-          console.error('   Error details:', tokenError.message, tokenError.stack);
         }
-      } else if (!event.attendance_token) {
-        console.log(`ℹ️ Event ${event.id} doesn't need token yet:`, {
-          status: event.registration_status,
-          payment: event.payment_status,
-          has_registration_id: !!event.primary_registration_id
+        
+        const shouldHaveToken = isApproved && isPaid && registrationId;
+        
+        console.log(`🔍 Token check for event ${event.id}:`, {
+          isApproved,
+          isPaid,
+          payment_status: event.payment_status,
+          payment_amount: event.payment_amount,
+          parsed_amount: paymentAmount,
+          has_token: !!event.attendance_token,
+          has_registration_id: !!registrationId,
+          shouldHaveToken
         });
+        
+        if (shouldHaveToken) {
+          console.log(`⚠️ Missing token for event ${event.id} (status: ${event.registration_status}, payment: ${event.payment_status}), registration ${registrationId}. Generating...`);
+          try {
+            const tokenData = await TokenService.createAttendanceToken(
+              registrationId,
+              userId,
+              event.id
+            );
+            event.attendance_token = tokenData.token;
+            console.log(`✅ Token generated retroactively: ${tokenData.token}`);
+            
+            // Also send email notification
+            try {
+              const [userData] = await query('SELECT email, full_name FROM users WHERE id = ?', [userId]);
+              if (userData && userData.length > 0) {
+                await TokenService.sendTokenEmail(
+                  userData[0].email,
+                  userData[0].full_name,
+                  event.title,
+                  tokenData.token
+                );
+                console.log(`✅ Token email sent to ${userData[0].email}`);
+              }
+            } catch (emailError) {
+              console.error('❌ Failed to send token email:', emailError);
+              // Don't fail if email fails
+            }
+          } catch (tokenError) {
+            console.error(`❌ Failed to generate token retroactively:`, tokenError);
+            console.error('   Error details:', tokenError.message);
+            console.error('   Stack:', tokenError.stack);
+          }
+        } else {
+          console.log(`ℹ️ Event ${event.id} doesn't need token yet:`, {
+            status: event.registration_status,
+            payment: event.payment_status,
+            has_registration_id: !!registrationId,
+            isApproved,
+            isPaid
+          });
+        }
       }
     }
     
