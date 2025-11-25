@@ -38,30 +38,44 @@ const MyEvents = () => {
         firstEvent: response.data?.events?.[0] || null
       });
       
-      // Handle both response structures: {success, data: {events}} or {success, data: events}
+      // ⚠️ FIX: Backend returns {success: true, data: {events: [...]}}
+      // Extract events array correctly
       let events = [];
       if (response.success && response.data) {
         if (Array.isArray(response.data.events)) {
           events = response.data.events;
         } else if (Array.isArray(response.data)) {
           events = response.data;
-        } else if (response.data.events) {
-          events = Array.isArray(response.data.events) ? response.data.events : [];
+        } else {
+          events = [];
         }
+        
         console.log('📋 Events found:', events.length);
         if (events.length > 0) {
-          console.log('📋 First event raw data:', JSON.stringify(events[0], null, 2));
-          console.log('📋 First event type:', Array.isArray(events[0]) ? 'array' : typeof events[0]);
-          console.log('📋 First event keys:', Array.isArray(events[0]) ? 'is array' : Object.keys(events[0] || {}));
+          const firstEvent = events[0];
+          console.log('📋 First event type:', Array.isArray(firstEvent) ? 'array' : typeof firstEvent);
+          console.log('📋 First event is array?', Array.isArray(firstEvent));
+          console.log('📋 First event raw:', firstEvent);
+          
+          // ⚠️ FIX: If first event is an array, flatten it
+          if (Array.isArray(firstEvent) && firstEvent.length > 0) {
+            console.log('⚠️ First event is nested array, flattening...');
+            events = events.flat();
+          }
         }
         
         // ⚠️ FIX: Transform to match registrations format
-        // Backend returns array of event objects, so we map directly
+        // Backend returns array of event objects, map directly
         const formattedRegistrations = events.map((event, index) => {
-          // ⚠️ FIX: Handle case where event might be nested in array (shouldn't happen, but just in case)
-          const eventData = Array.isArray(event) ? event[0] : event;
+          // ⚠️ FIX: event should be an object, not an array
+          // If it's still an array, take first element
+          let eventData = event;
+          if (Array.isArray(event)) {
+            console.warn('⚠️ Event at index', index, 'is still an array, taking first element');
+            eventData = event[0];
+          }
           
-          // ⚠️ FIX: Validate event data exists and is an object
+          // ⚠️ FIX: Validate event data exists and is an object (not array)
           if (!eventData || typeof eventData !== 'object' || Array.isArray(eventData)) {
             console.error('❌ Invalid event data at index', index, ':', eventData);
             return null;
@@ -69,7 +83,7 @@ const MyEvents = () => {
           
           if (index === 0) {
             console.log('📋 Processing first event - keys:', Object.keys(eventData));
-            console.log('📋 Processing first event - data:', {
+            console.log('📋 Processing first event - sample data:', {
               id: eventData.id,
               registration_id: eventData.registration_id,
               title: eventData.title,
@@ -79,27 +93,27 @@ const MyEvents = () => {
             });
           }
           
-          // ⚠️ FIX: Map directly from backend response structure
+          // ⚠️ FIX: Map directly from backend response structure - NO FALLBACK VALUES
+          // Only use null if data is truly missing
           const formatted = {
-            id: eventData.registration_id || null,
-            // ⚠️ FIX: event_id is from events table (eventData.id)
-            event_id: eventData.id || null,
-            event_title: eventData.title || null,
-            event_date: eventData.event_date || null,
-            location: eventData.location || null,
-            status: eventData.registration_status || eventData.status || 'pending',
-            created_at: eventData.registration_date || eventData.created_at || new Date().toISOString(),
+            id: eventData.registration_id ?? null,
+            event_id: eventData.id ?? null, // This is the event ID from events table
+            event_title: eventData.title ?? null,
+            event_date: eventData.event_date ?? null,
+            location: eventData.location ?? null,
+            status: eventData.registration_status ?? eventData.status ?? 'pending',
+            created_at: eventData.registration_date ?? eventData.created_at ?? new Date().toISOString(),
             is_archived: eventData.status === 'archived' || eventData.is_active === false || eventData.is_active === 0,
             has_certificate: Boolean(eventData.has_certificate),
-            certificate_id: eventData.certificate_id || null,
-            certificate_code: eventData.certificate_code || null,
-            attendance_token: eventData.attendance_token || null,
-            payment_status: eventData.payment_status || null,
-            payment_amount: eventData.payment_amount || null
+            certificate_id: eventData.certificate_id ?? null,
+            certificate_code: eventData.certificate_code ?? null,
+            attendance_token: eventData.attendance_token ?? null,
+            payment_status: eventData.payment_status ?? null,
+            payment_amount: eventData.payment_amount ?? null
           };
           
           if (index === 0) {
-            console.log('📋 Formatted first event:', formatted);
+            console.log('✅ Formatted first event:', formatted);
           }
           
           return formatted;
