@@ -306,7 +306,8 @@ const getUserEventHistory = async (userId) => {
         (SELECT certificate_number FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_code,
         (SELECT issued_at FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_issued_at,
         -- ⚠️ FIX: Get attendance token using LEFT JOIN for better performance and reliability
-        at.token as attendance_token
+        at.token as attendance_token,
+        r.id as primary_registration_id
       FROM event_registrations er
       INNER JOIN events e ON er.event_id = e.id
       LEFT JOIN registrations r ON r.user_id = er.user_id AND r.event_id = er.event_id
@@ -316,6 +317,29 @@ const getUserEventHistory = async (userId) => {
     `, [userId]);
 
     console.log('✅ Event history retrieved:', history.length, 'events');
+    
+    // ⚠️ FIX: Check if tokens are missing for approved/confirmed registrations
+    // This handles cases where token wasn't created during registration
+    const TokenService = require('../services/tokenService');
+    for (const event of history) {
+      if ((event.registration_status === 'approved' || event.registration_status === 'confirmed') 
+          && !event.attendance_token 
+          && event.primary_registration_id) {
+        console.log(`⚠️ Missing token for event ${event.id}, registration ${event.primary_registration_id}. Generating...`);
+        try {
+          const tokenData = await TokenService.createAttendanceToken(
+            event.primary_registration_id,
+            userId,
+            event.id
+          );
+          event.attendance_token = tokenData.token;
+          console.log(`✅ Token generated retroactively: ${tokenData.token}`);
+        } catch (tokenError) {
+          console.error(`❌ Failed to generate token retroactively:`, tokenError);
+        }
+      }
+    }
+    
     return history;
   } catch (error) {
     console.error('❌ Error getting user event history:', error);
