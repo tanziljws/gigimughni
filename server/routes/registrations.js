@@ -509,7 +509,7 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
           validPaymentMethod,
           paymentAmount,
           paymentStatus,
-          registrationStatus, // 'approved' for free events, 'pending' for paid
+          eventRegistrationStatus, // 'approved' for free events, 'pending' for paid (event_registrations table)
           notes || ''
         ]
       );
