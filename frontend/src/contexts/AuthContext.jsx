@@ -26,26 +26,9 @@ export const AuthProvider = ({ children }) => {
         if (token && userData) {
           const parsedUser = JSON.parse(userData);
           
-          // ⚠️ FIX: Validate token with backend on refresh
-          // Only validate if not admin (admin sessions are longer)
-          if (parsedUser.role !== 'admin') {
-            try {
-              // Quick validation - check if token is still valid using existing API service
-              await api.get('/auth/profile');
-              // If successful, token is valid - continue
-            } catch (error) {
-              // If 401, token is invalid - logout
-              if (error.response?.status === 401 || error.response?.status === 403) {
-                console.log('Token invalid on refresh - logging out');
-                localStorage.removeItem('token');
-                localStorage.removeItem('user');
-                setIsLoading(false);
-                return;
-              }
-              // Other errors (network, etc.) - don't logout, just log
-              console.error('Error validating token (non-fatal):', error);
-            }
-          }
+          // ⚠️ FIX: Don't validate token on refresh - let API interceptor handle it
+          // Token validation will happen naturally on first API call
+          // This prevents premature logout on refresh
           
           setUser(parsedUser);
           setLastActivity(Date.now());

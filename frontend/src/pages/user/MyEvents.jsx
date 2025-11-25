@@ -23,11 +23,17 @@ const MyEvents = () => {
   const fetchMyRegistrations = async () => {
     try {
       setLoading(true);
+      console.log('📋 Fetching my events...');
+      
       // Fetch from history endpoint to include archived events
       const response = await api.get('/history/my-events');
       
-      if (response.data.success) {
-        const events = response.data.data.events || [];
+      console.log('📋 My events response:', response);
+      
+      if (response.success && response.data) {
+        const events = response.data.events || [];
+        console.log('📋 Events found:', events.length);
+        
         // Transform to match registrations format
         const formattedRegistrations = events.map(event => ({
           id: event.registration_id,
@@ -42,11 +48,24 @@ const MyEvents = () => {
           certificate_id: event.certificate_id,
           certificate_code: event.certificate_code
         }));
+        
+        console.log('📋 Formatted registrations:', formattedRegistrations);
         setRegistrations(formattedRegistrations);
+      } else {
+        console.warn('⚠️ No events found or invalid response:', response);
+        setRegistrations([]);
       }
     } catch (error) {
-      console.error('Error fetching my events:', error);
-      alert('Gagal memuat data event Anda');
+      console.error('❌ Error fetching my events:', error);
+      console.error('   Error response:', error.response);
+      console.error('   Error message:', error.message);
+      console.error('   Error data:', error.response?.data);
+      
+      // Don't show alert if it's a 401 (will be handled by interceptor)
+      if (error.response?.status !== 401) {
+        alert(`Gagal memuat data event Anda: ${error.response?.data?.message || error.message}`);
+      }
+      setRegistrations([]);
     } finally {
       setLoading(false);
     }
