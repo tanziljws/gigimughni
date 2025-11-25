@@ -293,7 +293,11 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
 
     // ⚠️ FIX: event_registrations status enum is ('pending','approved','cancelled','attended')
     // Use 'approved' instead of 'confirmed' for free events
-    const registrationStatus = isFreeEvent ? 'approved' : 'pending';
+    // ⚠️ FIX: event_registrations uses 'approved', but registrations table uses 'confirmed'
+    // event_registrations.status: 'pending', 'approved', 'rejected', 'cancelled', 'attended'
+    // registrations.status: 'pending', 'confirmed', 'cancelled', 'attended'
+    const eventRegistrationStatus = isFreeEvent ? 'approved' : 'pending';
+    const registrationStatus = isFreeEvent ? 'confirmed' : 'pending'; // Use 'confirmed' for registrations table
     const paymentStatus = isFreeEvent ? 'paid' : 'pending';
     const paymentAmount = parseFloat(event.price || 0);
     
@@ -527,8 +531,9 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
 
     let tokenData = null;
 
-    // ⚠️ FIX: Check both 'confirmed' and 'approved' status (free events use 'approved')
-    if (registrationStatus === 'confirmed' || registrationStatus === 'approved') {
+    // ⚠️ FIX: Check both 'confirmed' and 'approved' status
+    // event_registrations uses 'approved', registrations uses 'confirmed'
+    if (eventRegistrationStatus === 'approved' || registrationStatus === 'confirmed') {
       // Generate attendance token
       // ⚠️ IMPORTANT: Use primaryRegistrationId (from registrations table) not eventRegistrationId
       // because attendance_tokens.registration_id references registrations.id
@@ -578,7 +583,7 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
       ...registrations[0],
       token: tokenData?.token || null,
       tokenExpiresAt: tokenData?.expiresAt || null
-    }, (registrationStatus === 'confirmed' || registrationStatus === 'approved')
+    }, (eventRegistrationStatus === 'approved' || registrationStatus === 'confirmed')
       ? 'Registration created successfully. Attendance token has been sent to your email.'
       : 'Registration created successfully. Silakan selesaikan pembayaran untuk menerima token kehadiran.'
     );
