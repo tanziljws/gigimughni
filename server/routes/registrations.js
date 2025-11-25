@@ -431,12 +431,14 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
     // ⚠️ IMPORTANT: This must succeed because attendance_tokens references registrations.id
     // ⚠️ FIX: Only use columns that exist in registrations table (based on migration 004)
     // Migration 032 adds full_name, phone, email, etc. but may not be applied in Railway
+    // ⚠️ FIX: Use promisePool.execute() directly to get ResultSetHeader with insertId
+    const { promisePool } = require('../db');
     let primaryRegistrationId = null;
     try {
       // Try with extended columns first (if migration 032 is applied)
       let primaryInsert;
       try {
-        primaryInsert = await query(
+        const [result] = await promisePool.execute(
           `INSERT INTO registrations 
            (user_id, event_id, full_name, phone, email, address, city, province, institution, payment_method, status, payment_status, payment_amount, notes) 
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -457,17 +459,18 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
             notes || ''
           ]
         );
-      primaryRegistrationId = primaryInsert.insertId;
-      console.log('✅ Registration record stored (with extended fields):', primaryRegistrationId);
-      console.log('   Insert result:', {
-        insertId: primaryInsert.insertId,
-        affectedRows: primaryInsert.affectedRows
-      });
+        primaryInsert = result;
+        primaryRegistrationId = result.insertId;
+        console.log('✅ Registration record stored (with extended fields):', primaryRegistrationId);
+        console.log('   Insert result:', {
+          insertId: result.insertId,
+          affectedRows: result.affectedRows
+        });
       } catch (extendedError) {
         // If extended columns don't exist, use basic columns only
         if (extendedError.message && extendedError.message.includes('Unknown column')) {
           console.log('⚠️ Extended columns not found, using basic columns only');
-          primaryInsert = await query(
+          const [result] = await promisePool.execute(
             `INSERT INTO registrations 
              (user_id, event_id, payment_method, status, payment_status, payment_amount, notes) 
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -481,11 +484,12 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
               notes || ''
             ]
           );
-          primaryRegistrationId = primaryInsert.insertId;
+          primaryInsert = result;
+          primaryRegistrationId = result.insertId;
           console.log('✅ Registration record stored (basic fields only):', primaryRegistrationId);
           console.log('   Insert result:', {
-            insertId: primaryInsert.insertId,
-            affectedRows: primaryInsert.affectedRows
+            insertId: result.insertId,
+            affectedRows: result.affectedRows
           });
         } else {
           throw extendedError;
