@@ -72,31 +72,10 @@ const MyEvents = () => {
             has_certificate: event.has_certificate,
             certificate_id: event.certificate_id,
             certificate_code: event.certificate_code,
-            // ⚠️ Note: attendance_token needs to be fetched separately from my-registrations endpoint
-            // or we need to join with attendance_tokens in the backend query
-            attendance_token: null // Will be populated if available
+            // ⚠️ FIX: attendance_token is now included in history/my-events response
+            attendance_token: event.attendance_token || null
           };
         });
-        
-        // ⚠️ FIX: Fetch attendance tokens separately for each registration
-        // Get tokens from my-registrations endpoint which includes attendance_token
-        try {
-          const registrationsResponse = await api.get('/registrations/my-registrations?limit=1000');
-          if (registrationsResponse.success && registrationsResponse.data?.registrations) {
-            const registrationsWithTokens = registrationsResponse.data.registrations;
-            
-            // Map tokens to formatted registrations by event_id
-            formattedRegistrations.forEach(reg => {
-              const regWithToken = registrationsWithTokens.find(r => r.event_id === reg.event_id);
-              if (regWithToken && regWithToken.attendance_token) {
-                reg.attendance_token = regWithToken.attendance_token;
-              }
-            });
-          }
-        } catch (error) {
-          console.warn('⚠️ Could not fetch attendance tokens:', error);
-          // Non-fatal - continue without tokens
-        }
         
         console.log('📋 Formatted registrations:', formattedRegistrations);
         setRegistrations(formattedRegistrations);
