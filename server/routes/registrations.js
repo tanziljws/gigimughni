@@ -11,6 +11,114 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(requireUser);
 
+// Get registrations with optional filters (supports query parameters)
+// For regular users: returns only their own registrations
+// For admin users: returns all registrations (if they have admin access)
+router.get('/', async (req, res) => {
+  try {
+    const { event_id, status, search, page = 1, limit = 10 } = req.query;
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const userId = req.user.id || req.user.userId || req.user;
+    const isAdmin = req.user.role === 'admin';
+
+    // Build WHERE clause
+    let whereClause = '';
+    let params = [];
+
+    // For regular users, only show their own registrations
+    if (!isAdmin) {
+      whereClause = 'WHERE er.user_id = ?';
+      params.push(userId);
+    } else {
+      // For admin, show all registrations
+      whereClause = 'WHERE 1=1';
+    }
+
+    // Add event_id filter
+    if (event_id) {
+      whereClause += ' AND er.event_id = ?';
+      params.push(event_id);
+    }
+
+    // Add status filter
+    if (status) {
+      whereClause += ' AND er.status = ?';
+      params.push(status);
+    }
+
+    // Add search filter (search in event title, user name, or email)
+    if (search) {
+      whereClause += ' AND (e.title LIKE ? OR u.full_name LIKE ? OR u.email LIKE ?)';
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    // Get total count
+    const [countResult] = await query(
+      `SELECT COUNT(*) as total 
+       FROM event_registrations er
+       LEFT JOIN events e ON er.event_id = e.id
+       LEFT JOIN users u ON er.user_id = u.id
+       ${whereClause}`,
+      params
+    );
+
+    const total = countResult[0]?.total || 0;
+
+    // Get registrations with event and user info
+    const [registrations] = await query(
+      `SELECT er.id,
+              er.user_id,
+              er.event_id,
+              er.payment_method,
+              er.payment_amount,
+              er.payment_status,
+              er.status,
+              er.notes,
+              er.created_at,
+              er.updated_at,
+              e.title as event_title, 
+              e.event_date, 
+              e.event_time,
+              e.location, 
+              e.price as registration_fee,
+              e.is_free,
+              u.full_name as full_name,
+              u.email as email,
+              u.phone as phone,
+              r.city as city,
+              r.province as province,
+              r.institution as institution,
+              at.token as attendance_token,
+              c.name as category_name
+       FROM event_registrations er
+       LEFT JOIN events e ON er.event_id = e.id
+       LEFT JOIN users u ON er.user_id = u.id
+       LEFT JOIN categories c ON e.category_id = c.id
+       LEFT JOIN registrations r ON r.user_id = er.user_id AND r.event_id = er.event_id
+       LEFT JOIN attendance_tokens at ON at.registration_id = r.id AND at.user_id = er.user_id AND at.event_id = er.event_id
+       ${whereClause}
+       ORDER BY er.created_at DESC 
+       LIMIT ${parseInt(limit)} OFFSET ${offset}`,
+      params
+    );
+
+    return ApiResponse.success(res, {
+      registrations: registrations || [],
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    }, 'Registrations retrieved successfully');
+
+  } catch (error) {
+    console.error('Get registrations error:', error);
+    return ApiResponse.error(res, 'Failed to fetch registrations');
+  }
+});
+
 // Check if user is registered for a specific event
 router.get('/check/:eventId', async (req, res) => {
   try {
