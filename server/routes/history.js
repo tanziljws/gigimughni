@@ -16,6 +16,20 @@ router.get('/my-events', authenticateToken, async (req, res) => {
     
     const history = await getUserEventHistory(userId);
     console.log('✅ Event history retrieved:', history.length, 'events');
+    
+    // Log token status for debugging
+    history.forEach((event, index) => {
+      console.log(`📋 Event ${index + 1}:`, {
+        id: event.id,
+        title: event.title,
+        registration_status: event.registration_status,
+        payment_status: event.payment_status,
+        payment_amount: event.payment_amount,
+        has_token: !!event.attendance_token,
+        token: event.attendance_token ? `${event.attendance_token.substring(0, 3)}...` : 'null',
+        primary_registration_id: event.primary_registration_id
+      });
+    });
 
     res.json({
       success: true,
