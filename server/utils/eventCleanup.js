@@ -282,6 +282,11 @@ const archiveEndedEvents = async () => {
  */
 const getUserEventHistory = async (userId) => {
   try {
+    // ⚠️ FIX: Validate userId - must not be undefined
+    if (!userId || userId === undefined || userId === null) {
+      throw new Error('User ID is required');
+    }
+    
     console.log('📋 Getting event history for user:', userId);
     
     // ⚠️ FIX: Use event_registrations as primary source (same as other endpoints)
@@ -324,7 +329,8 @@ const getUserEventHistory = async (userId) => {
     for (const event of history) {
       // ⚠️ FIX: Check database directly for token using user_id and event_id (simpler)
       // This works even if registration_id join fails
-      if (!event.attendance_token) {
+      // ⚠️ FIX: Validate event.id before using in query
+      if (!event.attendance_token && event.id && userId) {
         try {
           // Query token directly using user_id and event_id (most reliable)
           const [existingTokens] = await query(
@@ -344,8 +350,10 @@ const getUserEventHistory = async (userId) => {
           console.error(`❌ Error checking token in database:`, tokenCheckError);
           console.error(`   Error details:`, tokenCheckError.message);
         }
-      } else {
+      } else if (event.attendance_token) {
         console.log(`✅ Token already exists for event ${event.id}: ${event.attendance_token.substring(0, 3)}...`);
+      } else if (!event.id || !userId) {
+        console.log(`⚠️ Skipping token check - missing event.id (${event.id}) or userId (${userId})`);
       }
       
       console.log(`🔍 Checking event ${event.id}:`, {
@@ -368,8 +376,9 @@ const getUserEventHistory = async (userId) => {
         const isApproved = event.registration_status === 'approved' || event.registration_status === 'confirmed';
         
         // Try to find registration_id if not available
+        // ⚠️ FIX: Validate event.id and userId before querying
         let registrationId = event.primary_registration_id;
-        if (!registrationId) {
+        if (!registrationId && event.id && userId) {
           console.log(`🔍 Searching for registration_id: user_id=${userId}, event_id=${event.id}`);
           const [regRecords] = await query(
             `SELECT id FROM registrations WHERE user_id = ? AND event_id = ? LIMIT 1`,
@@ -384,8 +393,10 @@ const getUserEventHistory = async (userId) => {
             console.log(`⚠️ No registration_id found in registrations table for user_id=${userId}, event_id=${event.id}`);
             console.log(`   This might be an old registration before registrations table was used`);
           }
-        } else {
+        } else if (registrationId) {
           console.log(`✅ Using existing registration_id: ${registrationId}`);
+        } else {
+          console.log(`⚠️ Cannot search for registration_id - missing event.id (${event.id}) or userId (${userId})`);
         }
         
         const shouldHaveToken = isApproved && isPaid && registrationId;
