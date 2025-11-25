@@ -129,6 +129,7 @@ const MyEvents = () => {
           
           if (index === 0) {
             console.log('✅ Formatted first event:', formatted);
+            console.log('🔑 Token in formatted event:', formatted.attendance_token);
           }
           
           return formatted;
