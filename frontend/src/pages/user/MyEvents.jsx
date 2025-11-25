@@ -49,18 +49,29 @@ const MyEvents = () => {
           events = Array.isArray(response.data.events) ? response.data.events : [];
         }
         console.log('📋 Events found:', events.length);
-        console.log('📋 First event raw data:', events[0]);
+        if (events.length > 0) {
+          console.log('📋 First event raw data:', JSON.stringify(events[0], null, 2));
+          console.log('📋 First event keys:', Object.keys(events[0]));
+        }
         
         // Transform to match registrations format
-        const formattedRegistrations = events.map(event => {
+        const formattedRegistrations = events.map((event, index) => {
           // ⚠️ FIX: Log all available keys to debug
-          console.log('📋 Processing event - all keys:', Object.keys(event || {}));
-          console.log('📋 Processing event - full data:', event);
+          if (index === 0) {
+            console.log('📋 Processing first event - all keys:', Object.keys(event || {}));
+            console.log('📋 Processing first event - full data:', JSON.stringify(event, null, 2));
+          }
           
           // ⚠️ FIX: Handle case where event might be an object with nested structure
-          const eventData = event || {};
+          // Also handle case where event might be null/undefined
+          if (!event || typeof event !== 'object') {
+            console.error('❌ Invalid event data:', event);
+            return null;
+          }
           
-          return {
+          const eventData = event;
+          
+          const formatted = {
             id: eventData.registration_id || eventData.id || null,
             // ⚠️ FIX: Use event.id (from events table) not registration_id for event_id
             event_id: eventData.id || null, // This is the event ID from events table
@@ -76,7 +87,13 @@ const MyEvents = () => {
             // ⚠️ FIX: attendance_token is now included in history/my-events response
             attendance_token: eventData.attendance_token || null
           };
-        });
+          
+          if (index === 0) {
+            console.log('📋 Formatted first event:', formatted);
+          }
+          
+          return formatted;
+        }).filter(reg => reg !== null); // Remove null entries
         
         console.log('📋 Formatted registrations:', formattedRegistrations);
         setRegistrations(formattedRegistrations);
