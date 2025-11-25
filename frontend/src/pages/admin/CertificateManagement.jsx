@@ -66,7 +66,7 @@ const CertificateManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching events:', error);
-      toast.show('Gagal memuat daftar event', 'error');
+      toast.error('Gagal memuat daftar event', 'error');
       setEvents([]);
     } finally {
       setLoading(false);
@@ -113,7 +113,7 @@ const CertificateManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching template:', error);
-      toast.show('Gagal memuat template sertifikat', 'error');
+      toast.error('Gagal memuat template sertifikat', 'error');
     } finally {
       setTemplateLoading(false);
     }
@@ -128,7 +128,7 @@ const CertificateManagement = () => {
       }
     } catch (error) {
       console.error('Error fetching participants:', error);
-      toast.show('Gagal memuat data peserta', 'error');
+      toast.error('Gagal memuat data peserta', 'error');
       setParticipants([]);
     }
   };
@@ -146,11 +146,11 @@ const CertificateManagement = () => {
     const participant = generateConfirm.participant;
     try {
       await certificatesAPI.generate(selectedEvent.id, participant.id || participant.user_id);
-      toast.show(`Sertifikat berhasil dibuat untuk ${participant.full_name || participant.user_name}`, 'success');
+      toast.error(`Sertifikat berhasil dibuat untuk ${participant.full_name || participant.user_name}`, 'success');
       setGenerateConfirm({ show: false, participant: null });
     } catch (error) {
       console.error('Error generating certificate:', error);
-      toast.show('Gagal membuat sertifikat', 'error');
+      toast.error('Gagal membuat sertifikat', 'error');
     }
   };
 
@@ -161,11 +161,11 @@ const CertificateManagement = () => {
   const confirmBulkGenerate = async () => {
     try {
       await certificatesAPI.generateBulk(selectedEvent.id);
-      toast.show(`Sertifikat berhasil dibuat untuk semua ${participants.length} peserta`, 'success');
+      toast.success(`Sertifikat berhasil dibuat untuk semua ${participants.length} peserta`);
       setBulkGenerateConfirm(false);
     } catch (error) {
       console.error('Error generating bulk certificates:', error);
-      toast.show('Gagal membuat sertifikat', 'error');
+      toast.error('Gagal membuat sertifikat', 'error');
     }
   };
 
@@ -173,12 +173,12 @@ const CertificateManagement = () => {
     try {
       setSaving(true);
       const response = await certificatesAPI.updateTemplate(certificateTemplate);
-      toast.show('Template sertifikat berhasil disimpan!', 'success');
+      toast.success('Template sertifikat berhasil disimpan!');
       // Reload template to get updated data
       await fetchTemplate();
     } catch (error) {
       console.error('Error saving template:', error);
-      toast.show('Gagal menyimpan template', 'error');
+      toast.error('Gagal menyimpan template', 'error');
     } finally {
       setSaving(false);
     }

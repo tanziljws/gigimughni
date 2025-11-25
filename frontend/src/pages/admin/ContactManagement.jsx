@@ -56,27 +56,27 @@ const ContactManagement = () => {
       setSelectedContact(response.data);
     } catch (error) {
       console.error('Error fetching contact:', error);
-      toast.show('Gagal memuat detail kontak', 'error');
+      toast.error('Gagal memuat detail kontak');
     }
   };
 
   const handleStatusChange = async (contactId, newStatus) => {
     try {
       await contactsAPI.updateStatus(contactId, newStatus);
-      toast.show('Status berhasil diubah', 'success');
+      toast.success('Status berhasil diubah');
       fetchContacts();
       if (selectedContact && selectedContact.id === contactId) {
         setSelectedContact({ ...selectedContact, status: newStatus });
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.show('Gagal mengubah status', 'error');
+      toast.error('Gagal mengubah status');
     }
   };
 
   const handleReply = async () => {
     if (!replyMessage.trim()) {
-      toast.show('Pesan balasan tidak boleh kosong', 'error');
+      toast.error('Pesan balasan tidak boleh kosong');
       return;
     }
 
@@ -86,9 +86,9 @@ const ContactManagement = () => {
       
       // Check if email was sent successfully
       if (response.data?.email_sent) {
-        toast.show('✅ Balasan berhasil dikirim dan email telah terkirim ke user!', 'success');
+        toast.success('✅ Balasan berhasil dikirim dan email telah terkirim ke user!');
       } else {
-        toast.show('⚠️ Balasan berhasil disimpan, namun email gagal terkirim. Silakan cek konfigurasi SMTP.', 'warning');
+        toast.warning('⚠️ Balasan berhasil disimpan, namun email gagal terkirim. Silakan cek konfigurasi SMTP.');
       }
       
       setShowReplyModal(false);
@@ -101,7 +101,7 @@ const ContactManagement = () => {
     } catch (error) {
       console.error('Error sending reply:', error);
       const errorMsg = error.response?.data?.message || error.message || 'Gagal mengirim balasan';
-      toast.show(`❌ ${errorMsg}`, 'error');
+      toast.error(`❌ ${errorMsg}`);
     } finally {
       setReplying(false);
     }

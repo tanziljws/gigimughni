@@ -405,12 +405,12 @@ const BlogManagement = () => {
                     {/* Tags */}
                     {blog.tags && (
                       <div className="flex flex-wrap gap-2 mb-3">
-                        {blog.tags.split(',').map((tag, index) => (
+                        {(Array.isArray(blog.tags) ? blog.tags : (typeof blog.tags === 'string' ? blog.tags.split(',') : [])).map((tag, index) => (
                           <span
                             key={index}
                             className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded-lg font-medium"
                           >
-                            #{tag.trim()}
+                            #{typeof tag === 'string' ? tag.trim() : tag}
                           </span>
                         ))}
                       </div>
