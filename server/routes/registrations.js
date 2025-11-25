@@ -457,8 +457,12 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
             notes || ''
           ]
         );
-        primaryRegistrationId = primaryInsert.insertId;
-        console.log('✅ Registration record stored (with extended fields):', primaryRegistrationId);
+      primaryRegistrationId = primaryInsert.insertId;
+      console.log('✅ Registration record stored (with extended fields):', primaryRegistrationId);
+      console.log('   Insert result:', {
+        insertId: primaryInsert.insertId,
+        affectedRows: primaryInsert.affectedRows
+      });
       } catch (extendedError) {
         // If extended columns don't exist, use basic columns only
         if (extendedError.message && extendedError.message.includes('Unknown column')) {
@@ -479,6 +483,10 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
           );
           primaryRegistrationId = primaryInsert.insertId;
           console.log('✅ Registration record stored (basic fields only):', primaryRegistrationId);
+          console.log('   Insert result:', {
+            insertId: primaryInsert.insertId,
+            affectedRows: primaryInsert.affectedRows
+          });
         } else {
           throw extendedError;
         }
