@@ -334,10 +334,24 @@ const getUserEventHistory = async (userId) => {
       // 2. Payment is paid (or event is free) AND
       // 3. Token is missing AND
       // 4. We have primary_registration_id
-      const shouldHaveToken = (event.registration_status === 'approved' || event.registration_status === 'confirmed') 
-                              && (event.payment_status === 'paid' || event.payment_amount === '0.00' || event.payment_amount === 0)
+      const paymentAmount = parseFloat(event.payment_amount) || 0;
+      const isPaid = event.payment_status === 'paid' || paymentAmount === 0;
+      const isApproved = event.registration_status === 'approved' || event.registration_status === 'confirmed';
+      const shouldHaveToken = isApproved 
+                              && isPaid
                               && !event.attendance_token 
                               && event.primary_registration_id;
+      
+      console.log(`🔍 Token check for event ${event.id}:`, {
+        isApproved,
+        isPaid,
+        payment_status: event.payment_status,
+        payment_amount: event.payment_amount,
+        parsed_amount: paymentAmount,
+        has_token: !!event.attendance_token,
+        has_registration_id: !!event.primary_registration_id,
+        shouldHaveToken
+      });
       
       if (shouldHaveToken) {
         console.log(`⚠️ Missing token for event ${event.id} (status: ${event.registration_status}, payment: ${event.payment_status}), registration ${event.primary_registration_id}. Generating...`);
