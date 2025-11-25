@@ -50,19 +50,30 @@ const MyEvents = () => {
         console.log('📋 Events found:', events.length);
         
         // Transform to match registrations format
-        const formattedRegistrations = events.map(event => ({
-          id: event.registration_id,
-          event_id: event.id,
-          event_title: event.title,
-          event_date: event.event_date,
-          location: event.location,
-          status: event.registration_status,
-          created_at: event.registration_date,
-          is_archived: event.status === 'archived' || !event.is_active,
-          has_certificate: event.has_certificate,
-          certificate_id: event.certificate_id,
-          certificate_code: event.certificate_code
-        }));
+        const formattedRegistrations = events.map(event => {
+          console.log('📋 Processing event:', {
+            id: event.id,
+            registration_id: event.registration_id,
+            title: event.title,
+            event_date: event.event_date,
+            status: event.registration_status
+          });
+          
+          return {
+            id: event.registration_id || event.id,
+            // ⚠️ FIX: Use event.id (from events table) not registration_id for event_id
+            event_id: event.id, // This is the event ID from events table
+            event_title: event.title,
+            event_date: event.event_date,
+            location: event.location,
+            status: event.registration_status || event.status,
+            created_at: event.registration_date || event.created_at,
+            is_archived: event.status === 'archived' || event.is_active === false || event.is_active === 0,
+            has_certificate: event.has_certificate,
+            certificate_id: event.certificate_id,
+            certificate_code: event.certificate_code
+          };
+        });
         
         console.log('📋 Formatted registrations:', formattedRegistrations);
         setRegistrations(formattedRegistrations);
@@ -208,12 +219,23 @@ const MyEvents = () => {
                       <div>
                         <p className="text-gray-600 text-xs">Tanggal</p>
                         <p className="font-medium text-sm">
-                          {new Date(registration.event_date).toLocaleDateString('id-ID', { 
-                            weekday: 'long', 
-                            day: 'numeric', 
-                            month: 'long', 
-                            year: 'numeric' 
-                          })}
+                          {registration.event_date ? (() => {
+                            try {
+                              const date = new Date(registration.event_date);
+                              if (isNaN(date.getTime())) {
+                                return 'Tanggal tidak valid';
+                              }
+                              return date.toLocaleDateString('id-ID', { 
+                                weekday: 'long', 
+                                day: 'numeric', 
+                                month: 'long', 
+                                year: 'numeric' 
+                              });
+                            } catch (error) {
+                              console.error('Error parsing date:', error, registration.event_date);
+                              return 'Tanggal tidak valid';
+                            }
+                          })() : 'Tanggal tidak tersedia'}
                         </p>
                       </div>
                     </div>
@@ -246,13 +268,19 @@ const MyEvents = () => {
                       </Link>
                     )}
                     
-                    <Link
-                      to={`/events/${registration.event_id}`}
-                      className="w-full inline-flex justify-center items-center px-4 py-2.5 border border-purple-300 text-sm font-medium rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
-                    >
-                      Lihat Detail Event
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
+                    {registration.event_id ? (
+                      <Link
+                        to={`/events/${registration.event_id}`}
+                        className="w-full inline-flex justify-center items-center px-4 py-2.5 border border-purple-300 text-sm font-medium rounded-lg text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors"
+                      >
+                        Lihat Detail Event
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                    ) : (
+                      <div className="w-full inline-flex justify-center items-center px-4 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-500 bg-gray-50 cursor-not-allowed">
+                        Event ID tidak tersedia
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
