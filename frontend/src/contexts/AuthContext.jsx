@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../services/api';
 
 const AuthContext = createContext();
 
@@ -29,27 +30,20 @@ export const AuthProvider = ({ children }) => {
           // Only validate if not admin (admin sessions are longer)
           if (parsedUser.role !== 'admin') {
             try {
-              // Quick validation - check if token is still valid
-              const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}/auth/profile`, {
-                method: 'GET',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                }
-              });
-              
-              if (response.status === 401) {
-                // Token invalid - clear and logout
+              // Quick validation - check if token is still valid using existing API service
+              await api.get('/auth/profile');
+              // If successful, token is valid - continue
+            } catch (error) {
+              // If 401, token is invalid - logout
+              if (error.response?.status === 401 || error.response?.status === 403) {
                 console.log('Token invalid on refresh - logging out');
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
                 setIsLoading(false);
                 return;
               }
-            } catch (error) {
-              console.error('Error validating token:', error);
-              // If validation fails, still allow user to stay logged in
-              // (network error shouldn't logout user)
+              // Other errors (network, etc.) - don't logout, just log
+              console.error('Error validating token (non-fatal):', error);
             }
           }
           
