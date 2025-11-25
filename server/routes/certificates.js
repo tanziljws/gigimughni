@@ -286,10 +286,12 @@ router.put('/:id', authenticateToken, requireUser, async (req, res) => {
 router.get('/template', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const template = await getActiveTemplate();
-    return ApiResponse.success(res, template);
+    // Always return template (default if none exists)
+    return ApiResponse.success(res, template, 'Template retrieved successfully');
   } catch (error) {
     console.error('Get template error:', error);
-    return ApiResponse.error(res, 'Failed to fetch template');
+    // Return default template on error instead of error response
+    return ApiResponse.success(res, { ...DEFAULT_TEMPLATE }, 'Using default template');
   }
 });
 
