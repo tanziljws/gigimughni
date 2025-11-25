@@ -29,9 +29,24 @@ const MyEvents = () => {
       const response = await api.get('/history/my-events');
       
       console.log('📋 My events response:', response);
+      console.log('📋 Response structure:', {
+        success: response.success,
+        hasData: !!response.data,
+        hasEvents: !!response.data?.events,
+        eventsType: Array.isArray(response.data?.events) ? 'array' : typeof response.data?.events,
+        eventsLength: Array.isArray(response.data?.events) ? response.data.events.length : 'N/A'
+      });
       
+      // Handle both response structures: {success, data: {events}} or {success, data: events}
+      let events = [];
       if (response.success && response.data) {
-        const events = response.data.events || [];
+        if (Array.isArray(response.data.events)) {
+          events = response.data.events;
+        } else if (Array.isArray(response.data)) {
+          events = response.data;
+        } else if (response.data.events) {
+          events = Array.isArray(response.data.events) ? response.data.events : [];
+        }
         console.log('📋 Events found:', events.length);
         
         // Transform to match registrations format
