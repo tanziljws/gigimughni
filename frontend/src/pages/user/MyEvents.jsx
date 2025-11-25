@@ -71,9 +71,32 @@ const MyEvents = () => {
             is_archived: event.status === 'archived' || event.is_active === false || event.is_active === 0,
             has_certificate: event.has_certificate,
             certificate_id: event.certificate_id,
-            certificate_code: event.certificate_code
+            certificate_code: event.certificate_code,
+            // ⚠️ Note: attendance_token needs to be fetched separately from my-registrations endpoint
+            // or we need to join with attendance_tokens in the backend query
+            attendance_token: null // Will be populated if available
           };
         });
+        
+        // ⚠️ FIX: Fetch attendance tokens separately for each registration
+        // Get tokens from my-registrations endpoint which includes attendance_token
+        try {
+          const registrationsResponse = await api.get('/registrations/my-registrations?limit=1000');
+          if (registrationsResponse.success && registrationsResponse.data?.registrations) {
+            const registrationsWithTokens = registrationsResponse.data.registrations;
+            
+            // Map tokens to formatted registrations by event_id
+            formattedRegistrations.forEach(reg => {
+              const regWithToken = registrationsWithTokens.find(r => r.event_id === reg.event_id);
+              if (regWithToken && regWithToken.attendance_token) {
+                reg.attendance_token = regWithToken.attendance_token;
+              }
+            });
+          }
+        } catch (error) {
+          console.warn('⚠️ Could not fetch attendance tokens:', error);
+          // Non-fatal - continue without tokens
+        }
         
         console.log('📋 Formatted registrations:', formattedRegistrations);
         setRegistrations(formattedRegistrations);
@@ -253,6 +276,33 @@ const MyEvents = () => {
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                           {registration.category_name}
                         </span>
+                      </div>
+                    )}
+                    
+                    {/* Attendance Token */}
+                    {registration.attendance_token && (
+                      <div className="pt-3 border-t border-gray-200">
+                        <p className="text-gray-600 text-xs mb-1">Token Daftar Hadir</p>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+                            <p className="font-mono text-lg font-bold text-purple-800 tracking-wider text-center">
+                              {registration.attendance_token}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(registration.attendance_token);
+                              alert('Token berhasil disalin!');
+                            }}
+                            className="px-3 py-2 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-700 transition-colors"
+                            title="Salin token"
+                          >
+                            📋
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Gunakan token ini untuk daftar hadir di lokasi event
+                        </p>
                       </div>
                     )}
                   </div>
