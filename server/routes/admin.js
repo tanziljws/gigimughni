@@ -286,6 +286,7 @@ router.get('/registrations', async (req, res) => {
     // Get registrations with event and user info
     // ⚠️ FIX: event_registrations doesn't have full_name, email, phone, etc.
     // Use only columns that exist: from users table and event_registrations table
+    // ⚠️ FIX: city, province, institution are in registrations table, not users table
     const [registrations] = await query(
       `SELECT r.*, 
               e.title as event_title, 
@@ -298,13 +299,15 @@ router.get('/registrations', async (req, res) => {
               u.email as email,
               u.phone as phone,
               u.address as address,
-              u.city as city,
-              u.province as province,
-              u.institution as institution,
+              -- Get registrant data from registrations table (if exists)
+              reg.city as city,
+              reg.province as province,
+              reg.institution as institution,
               r.notes as notes
        FROM event_registrations r
        LEFT JOIN events e ON r.event_id = e.id
        LEFT JOIN users u ON r.user_id = u.id
+       LEFT JOIN registrations reg ON reg.user_id = r.user_id AND reg.event_id = r.event_id
        ${whereClause}
        ORDER BY r.created_at DESC 
        LIMIT ${parseInt(limit)} OFFSET ${offset}`,
@@ -550,9 +553,10 @@ router.get('/export/participants/:eventId', async (req, res) => {
         u.email as email,
         u.phone as phone,
         u.address as address,
-        u.city as city,
-        u.province as province,
-        u.institution as institution,
+        -- Get registrant data from registrations table (if exists)
+        reg.city as city,
+        reg.province as province,
+        reg.institution as institution,
         er.notes,
         er.status,
         er.payment_status,
@@ -560,6 +564,7 @@ router.get('/export/participants/:eventId', async (req, res) => {
         er.created_at
       FROM event_registrations er
       LEFT JOIN users u ON er.user_id = u.id
+      LEFT JOIN registrations reg ON reg.user_id = er.user_id AND reg.event_id = er.event_id
       WHERE er.event_id = ?
       ORDER BY er.created_at DESC
     `, [eventId]);
