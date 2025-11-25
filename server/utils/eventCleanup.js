@@ -1,4 +1,5 @@
 const { query } = require('../db');
+const TokenService = require('../services/tokenService');
 
 /**
  * Mark registrations as failed if user didn't attend (after attendance deadline)
@@ -320,7 +321,6 @@ const getUserEventHistory = async (userId) => {
     
     // ⚠️ FIX: Check if tokens are missing for approved/confirmed registrations
     // This handles cases where token wasn't created during registration
-    const TokenService = require('../services/tokenService');
     for (const event of history) {
       if ((event.registration_status === 'approved' || event.registration_status === 'confirmed') 
           && !event.attendance_token 
