@@ -370,15 +370,22 @@ const getUserEventHistory = async (userId) => {
         // Try to find registration_id if not available
         let registrationId = event.primary_registration_id;
         if (!registrationId) {
+          console.log(`🔍 Searching for registration_id: user_id=${userId}, event_id=${event.id}`);
           const [regRecords] = await query(
             `SELECT id FROM registrations WHERE user_id = ? AND event_id = ? LIMIT 1`,
             [userId, event.id]
           );
+          console.log(`📋 Registration records found:`, regRecords ? regRecords.length : 0);
           if (regRecords && regRecords.length > 0) {
             registrationId = regRecords[0].id;
             event.primary_registration_id = registrationId;
             console.log(`✅ Found registration_id: ${registrationId}`);
+          } else {
+            console.log(`⚠️ No registration_id found in registrations table for user_id=${userId}, event_id=${event.id}`);
+            console.log(`   This might be an old registration before registrations table was used`);
           }
+        } else {
+          console.log(`✅ Using existing registration_id: ${registrationId}`);
         }
         
         const shouldHaveToken = isApproved && isPaid && registrationId;
