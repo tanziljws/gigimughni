@@ -319,9 +319,30 @@ const getUserEventHistory = async (userId) => {
 
     console.log('✅ Event history retrieved:', history.length, 'events');
     
-    // ⚠️ FIX: Check if tokens are missing for approved/confirmed registrations
-    // This handles cases where token wasn't created during registration
+    // ⚠️ FIX: Check if tokens actually exist in database for each registration
+    // First, verify if token exists in database even if query didn't return it
     for (const event of history) {
+      // Check if token exists in database directly
+      if (event.primary_registration_id && !event.attendance_token) {
+        try {
+          const [existingTokens] = await query(
+            `SELECT token FROM attendance_tokens 
+             WHERE registration_id = ? AND user_id = ? AND event_id = ? 
+             ORDER BY created_at DESC LIMIT 1`,
+            [event.primary_registration_id, userId, event.id]
+          );
+          
+          if (existingTokens && existingTokens.length > 0) {
+            event.attendance_token = existingTokens[0].token;
+            console.log(`✅ Found existing token in database for event ${event.id}: ${existingTokens[0].token}`);
+          } else {
+            console.log(`⚠️ No token found in database for event ${event.id}, registration ${event.primary_registration_id}`);
+          }
+        } catch (tokenCheckError) {
+          console.error(`❌ Error checking token in database:`, tokenCheckError);
+        }
+      }
+      
       console.log(`🔍 Checking event ${event.id}:`, {
         registration_status: event.registration_status,
         payment_status: event.payment_status,
