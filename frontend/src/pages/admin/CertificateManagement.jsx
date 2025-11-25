@@ -146,11 +146,11 @@ const CertificateManagement = () => {
     const participant = generateConfirm.participant;
     try {
       await certificatesAPI.generate(selectedEvent.id, participant.id || participant.user_id);
-      toast.error(`Sertifikat berhasil dibuat untuk ${participant.full_name || participant.user_name}`, 'success');
+      toast.success(`Sertifikat berhasil dibuat untuk ${participant.full_name || participant.user_name}`);
       setGenerateConfirm({ show: false, participant: null });
     } catch (error) {
       console.error('Error generating certificate:', error);
-      toast.error('Gagal membuat sertifikat', 'error');
+      toast.error('Gagal membuat sertifikat');
     }
   };
 
@@ -165,7 +165,7 @@ const CertificateManagement = () => {
       setBulkGenerateConfirm(false);
     } catch (error) {
       console.error('Error generating bulk certificates:', error);
-      toast.error('Gagal membuat sertifikat', 'error');
+      toast.error('Gagal membuat sertifikat');
     }
   };
 
