@@ -34,7 +34,8 @@ const MyEvents = () => {
         hasData: !!response.data,
         hasEvents: !!response.data?.events,
         eventsType: Array.isArray(response.data?.events) ? 'array' : typeof response.data?.events,
-        eventsLength: Array.isArray(response.data?.events) ? response.data.events.length : 'N/A'
+        eventsLength: Array.isArray(response.data?.events) ? response.data.events.length : 'N/A',
+        firstEvent: response.data?.events?.[0] || null
       });
       
       // Handle both response structures: {success, data: {events}} or {success, data: events}
@@ -48,32 +49,32 @@ const MyEvents = () => {
           events = Array.isArray(response.data.events) ? response.data.events : [];
         }
         console.log('📋 Events found:', events.length);
+        console.log('📋 First event raw data:', events[0]);
         
         // Transform to match registrations format
         const formattedRegistrations = events.map(event => {
-          console.log('📋 Processing event:', {
-            id: event.id,
-            registration_id: event.registration_id,
-            title: event.title,
-            event_date: event.event_date,
-            status: event.registration_status
-          });
+          // ⚠️ FIX: Log all available keys to debug
+          console.log('📋 Processing event - all keys:', Object.keys(event || {}));
+          console.log('📋 Processing event - full data:', event);
+          
+          // ⚠️ FIX: Handle case where event might be an object with nested structure
+          const eventData = event || {};
           
           return {
-            id: event.registration_id || event.id,
+            id: eventData.registration_id || eventData.id || null,
             // ⚠️ FIX: Use event.id (from events table) not registration_id for event_id
-            event_id: event.id, // This is the event ID from events table
-            event_title: event.title,
-            event_date: event.event_date,
-            location: event.location,
-            status: event.registration_status || event.status,
-            created_at: event.registration_date || event.created_at,
-            is_archived: event.status === 'archived' || event.is_active === false || event.is_active === 0,
-            has_certificate: event.has_certificate,
-            certificate_id: event.certificate_id,
-            certificate_code: event.certificate_code,
+            event_id: eventData.id || null, // This is the event ID from events table
+            event_title: eventData.title || 'Event tanpa judul',
+            event_date: eventData.event_date || null,
+            location: eventData.location || 'Lokasi tidak tersedia',
+            status: eventData.registration_status || eventData.status || 'pending',
+            created_at: eventData.registration_date || eventData.created_at || new Date().toISOString(),
+            is_archived: eventData.status === 'archived' || eventData.is_active === false || eventData.is_active === 0,
+            has_certificate: eventData.has_certificate || false,
+            certificate_id: eventData.certificate_id || null,
+            certificate_code: eventData.certificate_code || null,
             // ⚠️ FIX: attendance_token is now included in history/my-events response
-            attendance_token: event.attendance_token || null
+            attendance_token: eventData.attendance_token || null
           };
         });
         
