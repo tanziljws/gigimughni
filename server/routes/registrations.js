@@ -425,32 +425,60 @@ router.post('/', validateRegistration, handleValidationErrors, async (req, res) 
 
     // Save to primary registrations table (analytics & user profile)
     // ⚠️ IMPORTANT: This must succeed because attendance_tokens references registrations.id
+    // ⚠️ FIX: Only use columns that exist in registrations table (based on migration 004)
+    // Migration 032 adds full_name, phone, email, etc. but may not be applied in Railway
     let primaryRegistrationId = null;
     try {
-      const [primaryInsert] = await query(
-        `INSERT INTO registrations 
-         (user_id, event_id, full_name, phone, email, address, city, province, institution, payment_method, status, payment_status, payment_amount, attendance_required, attendance_status, attendance_deadline, notes) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, 'pending', ?, ?)`,
-        [
-          req.user.id,
-          event_id,
-          registrantName,
-          registrantPhone,
-          registrantEmail,
-          registrantAddress,
-          registrantCity,
-          registrantProvince,
-          registrantInstitution,
-          validPaymentMethod,
-          registrationStatus,
-          paymentStatus,
-          paymentAmount,
-          attendanceDeadlineFormatted,
-          notes || ''
-        ]
-      );
-      primaryRegistrationId = primaryInsert.insertId;
-      console.log('✅ Registration record stored:', primaryRegistrationId);
+      // Try with extended columns first (if migration 032 is applied)
+      let primaryInsert;
+      try {
+        primaryInsert = await query(
+          `INSERT INTO registrations 
+           (user_id, event_id, full_name, phone, email, address, city, province, institution, payment_method, status, payment_status, payment_amount, notes) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            req.user.id,
+            event_id,
+            registrantName || null,
+            registrantPhone || null,
+            registrantEmail || null,
+            registrantAddress || null,
+            registrantCity || null,
+            registrantProvince || null,
+            registrantInstitution || null,
+            validPaymentMethod,
+            registrationStatus,
+            paymentStatus,
+            paymentAmount,
+            notes || ''
+          ]
+        );
+        primaryRegistrationId = primaryInsert.insertId;
+        console.log('✅ Registration record stored (with extended fields):', primaryRegistrationId);
+      } catch (extendedError) {
+        // If extended columns don't exist, use basic columns only
+        if (extendedError.message && extendedError.message.includes('Unknown column')) {
+          console.log('⚠️ Extended columns not found, using basic columns only');
+          primaryInsert = await query(
+            `INSERT INTO registrations 
+             (user_id, event_id, payment_method, status, payment_status, payment_amount, notes) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              req.user.id,
+              event_id,
+              validPaymentMethod,
+              registrationStatus,
+              paymentStatus,
+              paymentAmount,
+              notes || ''
+            ]
+          );
+          primaryRegistrationId = primaryInsert.insertId;
+          console.log('✅ Registration record stored (basic fields only):', primaryRegistrationId);
+        } else {
+          throw extendedError;
+        }
+      }
     } catch (primaryError) {
       console.error('❌ Failed to insert into registrations table:', primaryError);
       // ⚠️ FIX: Don't continue if registrations insert fails - attendance_tokens needs this ID
