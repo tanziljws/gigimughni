@@ -305,13 +305,12 @@ const getUserEventHistory = async (userId) => {
         (SELECT id FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_id,
         (SELECT certificate_number FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_code,
         (SELECT issued_at FROM certificates WHERE user_id = er.user_id AND event_id = e.id LIMIT 1) as certificate_issued_at,
-        -- ⚠️ FIX: Get attendance token from attendance_tokens table via registrations table
-        (SELECT at.token FROM attendance_tokens at 
-         INNER JOIN registrations r ON at.registration_id = r.id 
-         WHERE r.user_id = er.user_id AND r.event_id = e.id 
-         ORDER BY at.created_at DESC LIMIT 1) as attendance_token
+        -- ⚠️ FIX: Get attendance token using LEFT JOIN for better performance and reliability
+        at.token as attendance_token
       FROM event_registrations er
       INNER JOIN events e ON er.event_id = e.id
+      LEFT JOIN registrations r ON r.user_id = er.user_id AND r.event_id = er.event_id
+      LEFT JOIN attendance_tokens at ON at.registration_id = r.id AND at.user_id = er.user_id AND at.event_id = er.event_id
       WHERE er.user_id = ?
       ORDER BY e.event_date DESC, er.created_at DESC
     `, [userId]);
