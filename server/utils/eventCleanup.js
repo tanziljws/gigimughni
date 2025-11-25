@@ -412,7 +412,7 @@ const getUserEventHistory = async (userId) => {
           shouldHaveToken
         });
         
-        if (shouldHaveToken) {
+        if (shouldHaveToken && registrationId && userId && event.id) {
           console.log(`⚠️ Missing token for event ${event.id} (status: ${event.registration_status}, payment: ${event.payment_status}), registration ${registrationId}. Generating...`);
           try {
             const tokenData = await TokenService.createAttendanceToken(
@@ -430,7 +430,7 @@ const getUserEventHistory = async (userId) => {
                 await TokenService.sendTokenEmail(
                   userData[0].email,
                   userData[0].full_name,
-                  event.title,
+                  event.title || 'Event',
                   tokenData.token
                 );
                 console.log(`✅ Token email sent to ${userData[0].email}`);
@@ -450,7 +450,8 @@ const getUserEventHistory = async (userId) => {
             payment: event.payment_status,
             has_registration_id: !!registrationId,
             isApproved,
-            isPaid
+            isPaid,
+            has_all_params: !!(registrationId && userId && event.id)
           });
         }
       }
